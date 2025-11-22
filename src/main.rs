@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
     let mut f = OpenOptions::new().read(true).open(&input_file_name)?;
     // TODO(juf): Remove trim from underlying Deserializer
-    let mut reader = csv::ReaderBuilder::new()
+    let reader = csv::ReaderBuilder::new()
         .trim(csv::Trim::All)
         .from_reader(&mut f);
 

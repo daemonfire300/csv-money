@@ -55,10 +55,10 @@ impl<'de> Visitor<'de> for TransactionRowMapVisitor {
             DEPOSIT => match amount {
                 Some(Ok(dec)) => Ok(Transaction::Deposit(Metadata::new(client, tx_id), dec)),
                 Some(Err(err)) => {
-                    return Err(A::Error::custom(format!(
+                    Err(A::Error::custom(format!(
                         "expected decimal, but failed to parse {:?} due to {}",
                         &amount_raw, err
-                    )));
+                    )))
                 }
                 None => Err(A::Error::missing_field(
                     "transaction of type deposit requires an amount",
@@ -67,10 +67,10 @@ impl<'de> Visitor<'de> for TransactionRowMapVisitor {
             WITHDRAWAL => match amount {
                 Some(Ok(dec)) => Ok(Transaction::Withdrawal(Metadata::new(client, tx_id), dec)),
                 Some(Err(err)) => {
-                    return Err(A::Error::custom(format!(
+                    Err(A::Error::custom(format!(
                         "expected decimal, but failed to parse {:?} due to {}",
                         &amount_raw, err
-                    )));
+                    )))
                 }
                 None => Err(A::Error::missing_field(
                     "transaction of type withdrawal requires an amount",
@@ -93,7 +93,7 @@ impl<'de> Deserialize<'de> for Transaction {
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_map(TransactionRowMapVisitor::default())
+        deserializer.deserialize_map(TransactionRowMapVisitor)
     }
 }
 

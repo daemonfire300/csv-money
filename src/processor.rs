@@ -34,7 +34,7 @@ impl Processor {
             Transaction::Deposit(
                 Metadata {
                     client: _,
-                    tx_id: tx_id,
+                    tx_id,
                 },
                 amount,
             ) => {
@@ -45,7 +45,7 @@ impl Processor {
             Transaction::Withdrawal(
                 Metadata {
                     client: _,
-                    tx_id: tx_id,
+                    tx_id,
                 },
                 amount,
             ) => {
@@ -55,33 +55,30 @@ impl Processor {
             }
             Transaction::Dispute(Metadata {
                 client: _,
-                tx_id: tx_id,
+                tx_id,
             }) => {
-                if let Some(amount) = self.txn_cache.get(&tx_id) {
-                    if let Some(acc) = self.account_store.get_mut(&acc_id) {
-                        acc.withdraw(amount.clone());
-                    }
-                };
+                if let Some(amount) = self.txn_cache.get(&tx_id)
+                    && let Some(acc) = self.account_store.get_mut(&acc_id) {
+                        acc.withdraw(*amount);
+                    };
             }
             Transaction::Resolve(Metadata {
                 client: _,
-                tx_id: tx_id,
+                tx_id,
             }) => {
-                if let Some(amount) = self.txn_cache.get(&tx_id) {
-                    if let Some(acc) = self.account_store.get_mut(&acc_id) {
-                        acc.resolve(amount.clone());
-                    }
-                };
+                if let Some(amount) = self.txn_cache.get(&tx_id)
+                    && let Some(acc) = self.account_store.get_mut(&acc_id) {
+                        acc.resolve(*amount);
+                    };
             }
             Transaction::Chargeback(Metadata {
                 client: _,
-                tx_id: tx_id,
+                tx_id,
             }) => {
-                if let Some(amount) = self.txn_cache.get(&tx_id) {
-                    if let Some(acc) = self.account_store.get_mut(&acc_id) {
-                        acc.chargeback(amount.clone());
-                    }
-                };
+                if let Some(amount) = self.txn_cache.get(&tx_id)
+                    && let Some(acc) = self.account_store.get_mut(&acc_id) {
+                        acc.chargeback(*amount);
+                    };
             }
         };
     }
