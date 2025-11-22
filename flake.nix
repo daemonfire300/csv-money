@@ -21,7 +21,9 @@
 
         devShells.default = let
           stable-rust = pkgs.rust-bin.stable.latest;
-          rust-core = stable-rust.default;
+          rust-core = stable-rust.default.override {
+            extensions = [ "rust-std" "rust-src" ];
+          };
           stable-rust-analyzer = stable-rust.rust-analyzer;
         in with pkgs;
         mkShell {

@@ -1,7 +1,5 @@
 pub(crate) mod transactions {
     use rust_decimal::Decimal;
-    
-    
 
     // TOOD(juf): Safety improvement, write macro to turn VALID_VARIANTS into consts.
     // This ties the strings to one source of truth. Currently you can still have a missing
@@ -19,6 +17,7 @@ pub(crate) mod transactions {
     // Currently this allows representing invalid domain entities, e.g.,
     // The program can hold/process/produce a Entry of type Chargeback with a not `None` amount.
     // Good type/api/program design should make this impossible
+    #[derive(Debug, PartialEq, Eq)]
     pub enum Transaction {
         Deposit(Metadata, Decimal), // LLM use here, see LLM file llm-ref[1], not very helpful
         // answer. Decided to just go read serde docs again: https://serde.rs/deserialize-map.html
@@ -27,13 +26,15 @@ pub(crate) mod transactions {
         Resolve(Metadata),
         Chargeback(Metadata),
     }
+
+    #[derive(Debug, PartialEq, Eq)]
     pub struct Metadata {
         pub client: u16,
         pub tx_id: u32,
     }
 
     impl Metadata {
-        fn new(client: u16, tx_id: u32) -> Self {
+        pub(crate) fn new(client: u16, tx_id: u32) -> Self {
             Metadata { client, tx_id }
         }
     }
@@ -41,17 +42,17 @@ pub(crate) mod transactions {
     mod deserialize {
         use super::*;
         use rust_decimal::Decimal;
-        use serde::de::{
-            Deserialize, Error, MapAccess,
-            Visitor,
-        };
+        use serde::de::{Deserialize, Error, MapAccess, Visitor};
         use std::fmt;
+
+        #[derive(Default)]
         pub struct TransactionRowMapVisitor;
+
         impl<'de> Visitor<'de> for TransactionRowMapVisitor {
             type Value = Transaction;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a very special map")
+                formatter.write_str("a map")
             }
 
             fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -63,24 +64,61 @@ pub(crate) mod transactions {
                     return Err(A::Error::invalid_length(0, &"expected row of 4 entries"));
                 };
 
-                let Some((_, client)) = map.next_entry::<&str, u16>()? else {
+                let Some((_, client_raw)) = map.next_entry::<&str, String>()? else {
                     return Err(A::Error::invalid_length(0, &"expected row of 4 entries"));
                 };
-                let Some((_, tx_id)) = map.next_entry::<&str, u32>()? else {
+                // TODO(juf): Minor potential for DRY, we trim+parse+error-handle 3 times here
+                // which could be factored out.
+                let client = match client_raw.trim().parse() {
+                    Ok(num) => num,
+                    Err(err) => {
+                        return Err(A::Error::custom(format!(
+                            "expected integer, but failed to parse {} due to {}",
+                            &client_raw, err
+                        )));
+                    }
+                };
+                let Some((_, tx_id_raw)) = map.next_entry::<&str, String>()? else {
                     return Err(A::Error::invalid_length(0, &"expected row of 4 entries"));
                 };
-                let Some((_, amount)) = map.next_entry::<&str, Option<Decimal>>()? else {
+                let tx_id = match tx_id_raw.trim().parse() {
+                    Ok(num) => num,
+                    Err(err) => {
+                        return Err(A::Error::custom(format!(
+                            "expected integer, but failed to parse {} due to {}",
+                            &tx_id_raw, err
+                        )));
+                    }
+                };
+                let Some((_, amount_raw)) = map.next_entry::<&str, Option<String>>()? else {
                     return Err(A::Error::invalid_length(0, &"expected row of 4 entries"));
                 };
+                let amount = amount_raw.as_ref().map(|str| str.trim().parse());
                 match type_tag {
                     DEPOSIT => match amount {
-                        Some(dec) => Ok(Transaction::Deposit(Metadata::new(client, tx_id), dec)),
+                        Some(Ok(dec)) => {
+                            Ok(Transaction::Deposit(Metadata::new(client, tx_id), dec))
+                        }
+                        Some(Err(err)) => {
+                            return Err(A::Error::custom(format!(
+                                "expected decimal, but failed to parse {:?} due to {}",
+                                &amount_raw, err
+                            )));
+                        }
                         None => Err(A::Error::missing_field(
                             "transaction of type deposit requires an amount",
                         )),
                     },
                     WITHDRAWAL => match amount {
-                        Some(dec) => Ok(Transaction::Withdrawal(Metadata::new(client, tx_id), dec)),
+                        Some(Ok(dec)) => {
+                            Ok(Transaction::Withdrawal(Metadata::new(client, tx_id), dec))
+                        }
+                        Some(Err(err)) => {
+                            return Err(A::Error::custom(format!(
+                                "expected decimal, but failed to parse {:?} due to {}",
+                                &amount_raw, err
+                            )));
+                        }
                         None => Err(A::Error::missing_field(
                             "transaction of type withdrawal requires an amount",
                         )),
@@ -104,7 +142,7 @@ pub(crate) mod transactions {
             where
                 D: serde::Deserializer<'de>,
             {
-                todo!()
+                deserializer.deserialize_map(TransactionRowMapVisitor::default())
             }
         }
     }
@@ -114,5 +152,66 @@ pub(crate) mod transactions {
         pub client: u16,
         pub tx_id: u32,
         pub amount: Option<Decimal>,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use csv::Result;
+    use rust_decimal::dec;
+
+    use crate::objects::transactions::{Metadata, Transaction};
+
+    #[test]
+    fn empty_row_fails_maybe_not_so_good() {
+        let doc = r#"
+        type,client,tx,amount
+
+        "#;
+        let mut rdr = csv::Reader::from_reader(doc.as_bytes());
+        let mut iter = rdr.deserialize();
+        //let _tx: Transaction = r.expect("could not deserialize transaction from row");
+        let next: Option<Result<Transaction>> = iter.next();
+        assert!(next.expect("row should be Some").is_err());
+    }
+
+    #[test]
+    fn single_row() {
+        let doc = r#"type,client,tx,amount
+deposit, 2, 3, 4.0"#;
+        let mut rdr = csv::Reader::from_reader(doc.as_bytes());
+        let headers = rdr.headers().expect("should have headers");
+        println!("{:?}", headers);
+        let mut iter = rdr.deserialize();
+        //let _tx: Transaction = r.expect("could not deserialize transaction from row");
+        let next: Option<Result<Transaction>> = iter.next();
+        assert_eq!(
+            next.expect("row should be Some")
+                .expect("row should be Transaction"),
+            Transaction::Deposit(Metadata::new(2, 3), dec!(4.0))
+        );
+    }
+    #[test]
+    fn multiple_rows() {
+        let doc = r#"type,client,tx,amount
+deposit, 2, 3, 4.0
+withdrawal, 2, 4, 4.0"#;
+        let mut rdr = csv::Reader::from_reader(doc.as_bytes());
+        let headers = rdr.headers().expect("should have headers");
+        println!("{:?}", headers);
+        let mut iter = rdr.deserialize();
+        //let _tx: Transaction = r.expect("could not deserialize transaction from row");
+        let next: Option<Result<Transaction>> = iter.next();
+        assert_eq!(
+            next.expect("row should be Some")
+                .expect("row should be Transaction"),
+            Transaction::Deposit(Metadata::new(2, 3), dec!(4.0))
+        );
+        let next: Option<Result<Transaction>> = iter.next();
+        assert_eq!(
+            next.expect("row should be Some")
+                .expect("row should be Transaction"),
+            Transaction::Withdrawal(Metadata::new(2, 4), dec!(4.0))
+        );
     }
 }
