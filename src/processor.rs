@@ -54,6 +54,7 @@ impl Processor {
                 if let Some(amount) = self.txn_cache.get(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
+                    // TODO(juf): Remove txn from cache.
                     acc.resolve(*amount);
                 };
             }
@@ -61,6 +62,8 @@ impl Processor {
                 if let Some(amount) = self.txn_cache.get(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
+                    // TODO(juf): Remove txn from cache. (And potentially all owned by the user,
+                    // this would require an index for efficient lookup, potentially)
                     acc.chargeback(*amount);
                 };
             }
