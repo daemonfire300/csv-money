@@ -1,21 +1,19 @@
 pub(crate) mod transactions {
-    use rust_decimal::{Decimal, dec};
-    use serde::de::{
-        Deserialize, Deserializer, Error, Expected, MapAccess, Unexpected, VariantAccess, Visitor,
-    };
-    use std::fmt;
+    use rust_decimal::Decimal;
+    
+    
 
     // TOOD(juf): Safety improvement, write macro to turn VALID_VARIANTS into consts.
     // This ties the strings to one source of truth. Currently you can still have a missing
     // variant.
     // This does not solve the exhaustiveness of the Deserialize type tag checking.
     // Have to come up with an idea for that later (maybe).
-    const DEPOSIT: &'static str = "deposit";
-    const WITHDRAWAL: &'static str = "withdrawal";
-    const DISPUTE: &'static str = "dispute";
-    const RESOLVE: &'static str = "resolve";
-    const CHARGEBACK: &'static str = "chargeback";
-    const VALID_VARIANTS: [&'static str; 5] = [DEPOSIT, WITHDRAWAL, DISPUTE, RESOLVE, CHARGEBACK];
+    const DEPOSIT: &str = "deposit";
+    const WITHDRAWAL: &str = "withdrawal";
+    const DISPUTE: &str = "dispute";
+    const RESOLVE: &str = "resolve";
+    const CHARGEBACK: &str = "chargeback";
+    const VALID_VARIANTS: [&str; 5] = [DEPOSIT, WITHDRAWAL, DISPUTE, RESOLVE, CHARGEBACK];
 
     // TODO(juf): Think about making this more "safe" using the type-system.
     // Currently this allows representing invalid domain entities, e.g.,
@@ -42,9 +40,9 @@ pub(crate) mod transactions {
 
     mod deserialize {
         use super::*;
-        use rust_decimal::{Decimal, dec};
+        use rust_decimal::Decimal;
         use serde::de::{
-            Deserialize, Deserializer, Error, Expected, MapAccess, Unexpected, VariantAccess,
+            Deserialize, Error, MapAccess,
             Visitor,
         };
         use std::fmt;
