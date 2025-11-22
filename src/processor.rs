@@ -31,54 +31,38 @@ impl Processor {
             return;
         }
         match txn {
-            Transaction::Deposit(
-                Metadata {
-                    client: _,
-                    tx_id,
-                },
-                amount,
-            ) => {
+            Transaction::Deposit(Metadata { client: _, tx_id }, amount) => {
                 if let Some(acc) = self.account_store.get_mut(&acc_id) {
                     acc.deposit(amount);
+                    self.txn_cache.entry(tx_id).or_insert(amount);
                 }
             }
-            Transaction::Withdrawal(
-                Metadata {
-                    client: _,
-                    tx_id,
-                },
-                amount,
-            ) => {
+            Transaction::Withdrawal(Metadata { client: _, tx_id }, amount) => {
                 if let Some(acc) = self.account_store.get_mut(&acc_id) {
                     acc.withdraw(amount);
+                    self.txn_cache.entry(tx_id).or_insert(amount);
                 }
             }
-            Transaction::Dispute(Metadata {
-                client: _,
-                tx_id,
-            }) => {
+            Transaction::Dispute(Metadata { client: _, tx_id }) => {
                 if let Some(amount) = self.txn_cache.get(&tx_id)
-                    && let Some(acc) = self.account_store.get_mut(&acc_id) {
-                        acc.withdraw(*amount);
-                    };
+                    && let Some(acc) = self.account_store.get_mut(&acc_id)
+                {
+                    acc.withdraw(*amount);
+                };
             }
-            Transaction::Resolve(Metadata {
-                client: _,
-                tx_id,
-            }) => {
+            Transaction::Resolve(Metadata { client: _, tx_id }) => {
                 if let Some(amount) = self.txn_cache.get(&tx_id)
-                    && let Some(acc) = self.account_store.get_mut(&acc_id) {
-                        acc.resolve(*amount);
-                    };
+                    && let Some(acc) = self.account_store.get_mut(&acc_id)
+                {
+                    acc.resolve(*amount);
+                };
             }
-            Transaction::Chargeback(Metadata {
-                client: _,
-                tx_id,
-            }) => {
+            Transaction::Chargeback(Metadata { client: _, tx_id }) => {
                 if let Some(amount) = self.txn_cache.get(&tx_id)
-                    && let Some(acc) = self.account_store.get_mut(&acc_id) {
-                        acc.chargeback(*amount);
-                    };
+                    && let Some(acc) = self.account_store.get_mut(&acc_id)
+                {
+                    acc.chargeback(*amount);
+                };
             }
         };
     }
