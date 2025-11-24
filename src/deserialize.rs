@@ -21,7 +21,7 @@ impl<'de> Visitor<'de> for TransactionRowMapVisitor {
             return Err(A::Error::invalid_length(0, &"expected row of 4 entries"));
         };
 
-        let Some((_, client_raw)) = map.next_entry::<&str, String>()? else {
+        let Some((_, client_raw)) = map.next_entry::<&str, &str>()? else {
             return Err(A::Error::invalid_length(0, &"expected row of 4 entries"));
         };
         // TODO(juf): Minor potential for DRY, we parse+error-handle 3 times here
@@ -35,7 +35,7 @@ impl<'de> Visitor<'de> for TransactionRowMapVisitor {
                 )));
             }
         };
-        let Some((_, tx_id_raw)) = map.next_entry::<&str, String>()? else {
+        let Some((_, tx_id_raw)) = map.next_entry::<&str, &str>()? else {
             return Err(A::Error::invalid_length(0, &"expected row of 4 entries"));
         };
         let tx_id = match tx_id_raw.parse() {
@@ -47,31 +47,27 @@ impl<'de> Visitor<'de> for TransactionRowMapVisitor {
                 )));
             }
         };
-        let Some((_, amount_raw)) = map.next_entry::<&str, Option<String>>()? else {
+        let Some((_, amount_raw)) = map.next_entry::<&str, Option<&str>>()? else {
             return Err(A::Error::invalid_length(0, &"expected row of 4 entries"));
         };
         let amount = amount_raw.as_ref().map(|str| str.parse());
         match type_tag {
             DEPOSIT => match amount {
                 Some(Ok(dec)) => Ok(Transaction::Deposit(Metadata::new(client, tx_id), dec)),
-                Some(Err(err)) => {
-                    Err(A::Error::custom(format!(
-                        "expected decimal, but failed to parse {:?} due to {}",
-                        &amount_raw, err
-                    )))
-                }
+                Some(Err(err)) => Err(A::Error::custom(format!(
+                    "expected decimal, but failed to parse {:?} due to {}",
+                    &amount_raw, err
+                ))),
                 None => Err(A::Error::missing_field(
                     "transaction of type deposit requires an amount",
                 )),
             },
             WITHDRAWAL => match amount {
                 Some(Ok(dec)) => Ok(Transaction::Withdrawal(Metadata::new(client, tx_id), dec)),
-                Some(Err(err)) => {
-                    Err(A::Error::custom(format!(
-                        "expected decimal, but failed to parse {:?} due to {}",
-                        &amount_raw, err
-                    )))
-                }
+                Some(Err(err)) => Err(A::Error::custom(format!(
+                    "expected decimal, but failed to parse {:?} due to {}",
+                    &amount_raw, err
+                ))),
                 None => Err(A::Error::missing_field(
                     "transaction of type withdrawal requires an amount",
                 )),

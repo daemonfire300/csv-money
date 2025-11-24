@@ -54,14 +54,20 @@ pub(crate) mod transactions {
 }
 
 pub(crate) mod accounts {
-    use rust_decimal::Decimal;
+    use rust_decimal::{Decimal, dec};
+    use serde::Serialize;
 
-    #[derive(Default)]
+    const ZERO: Decimal = dec!(0);
+
+    // println!("Account Size {}", size_of::<Account>());
+    // >> 36
+    #[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
     pub(crate) struct Account {
-        id: u16,
-        available: Decimal,
-        held: Decimal,
-        locked: bool,
+        pub(crate) id: u16,            // 16 bit                        |    2 bytes
+        pub(crate) locked: bool,       // 1 bit                         |    1 byte
+        pub(crate) available: Decimal, // 2x 64bit                      |   16 bytes
+        pub(crate) held: Decimal,      // 2x 64bit                      |   16 bytes
+                                       // padding                       |    1 byte
     }
 
     impl Account {
@@ -101,7 +107,9 @@ pub(crate) mod accounts {
         }
 
         pub(crate) fn withdraw(&mut self, amount: Decimal) {
-            self.available -= amount;
+            if self.available >= amount {
+                self.available = self.available - amount
+            }
         }
     }
 }

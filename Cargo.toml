@@ -7,3 +7,6 @@ edition = "2024"
 csv = "1.4.0"
 rust_decimal = { version = "1.39.0", features = ["macros"] }
 serde = { version = "1.0.228", features = ["std", "derive"] }
+
+[dev-dependencies]
+tempfile = "3.23.0"

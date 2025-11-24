@@ -20,11 +20,15 @@ impl Processor {
         }
     }
 
+    pub(crate) fn get_account_store_ref(&self) -> &HashMap<u16, Account> {
+        &self.account_store
+    }
+
     // Assumptions:
     // 1. Locked means no transactions associated with the account are being processed any more
     pub(crate) fn process_one(&mut self, txn: Transaction) {
-        let acc_metadata = txn.get_metadata();
-        let acc_id = acc_metadata.client;
+        let metadata = txn.get_metadata();
+        let acc_id = metadata.client;
         let acc = self.create_account_if_not_exists(acc_id);
         if acc.is_locked() {
             // skip any further transactions? The PDF does not really specify what locked means
@@ -47,7 +51,7 @@ impl Processor {
                 if let Some(amount) = self.txn_cache.get(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
-                    acc.withdraw(*amount);
+                    acc.dispute(*amount);
                 };
             }
             Transaction::Resolve(Metadata { client: _, tx_id }) => {
@@ -71,6 +75,189 @@ impl Processor {
     }
 
     fn create_account_if_not_exists(&mut self, id: u16) -> &Account {
-        self.account_store.entry(id).or_default()
+        self.account_store.entry(id).or_insert(Account::new(id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use rust_decimal::dec;
+
+    use crate::{
+        egress::default_csv_egress,
+        ingest::default_csv_ingest,
+        objects::{accounts::Account, transactions::Transaction},
+        processor::Processor,
+    };
+
+    #[test]
+    fn process_simple_file() {
+        // TODO(juf): Create test file, maybe write generator function
+        let mut ingest = default_csv_ingest(Path::new("tests/sample1.csv"))
+            .expect("Can open file and create ingest");
+        let mut p = Processor::new();
+        let iter = ingest.deserialize();
+        let mut count = 0;
+        for row in iter {
+            let txn: Transaction = row.expect("Should be valid transaction");
+            p.process_one(txn);
+            count += 1;
+        }
+        assert_eq!(
+            5, count,
+            "Did not receive the expected amount of transactions"
+        );
+        let out_dir = tempfile::tempdir().expect("Could not create tempdir");
+        let out_path = out_dir.path().join("out.csv");
+        println!("out path: {:?}", out_path);
+        let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
+        let mut count = 0;
+        let mut ordered_accounts: Vec<_> = p
+            .get_account_store_ref()
+            .iter()
+            .map(|(_, v)| v)
+            .cloned()
+            .collect();
+        ordered_accounts.sort_by_key(|acc| acc.id);
+        for (_, account) in p.get_account_store_ref().iter() {
+            egress.serialize(account).expect("can write account row");
+            count += 1;
+        }
+        assert_eq!(
+            2, count,
+            "Did not receive the expected amount of account statements"
+        );
+        assert_eq!(
+            vec![
+                Account {
+                    id: 1,
+                    locked: false,
+                    available: dec!(1.5),
+                    held: dec!(0)
+                },
+                Account {
+                    id: 2,
+                    locked: false,
+                    available: dec!(2.0),
+                    held: dec!(0)
+                }
+            ],
+            ordered_accounts
+        )
+    }
+
+    #[test]
+    fn process_dispute_with_and_without_resolve() {
+        // TODO(juf): Create test file, maybe write generator function
+        let mut ingest = default_csv_ingest(Path::new("tests/sample-dispute-resolve-1.csv"))
+            .expect("Can open file and create ingest");
+        let mut p = Processor::new();
+        let iter = ingest.deserialize();
+        let mut count = 0;
+        for row in iter {
+            let txn: Transaction = row.expect("Should be valid transaction");
+            p.process_one(txn);
+            count += 1;
+        }
+        assert_eq!(
+            8, count,
+            "Did not receive the expected amount of transactions"
+        );
+        let out_dir = tempfile::tempdir().expect("Could not create tempdir");
+        let out_path = out_dir.path().join("out.csv");
+        println!("out path: {:?}", out_path);
+        let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
+        let mut count = 0;
+        let mut ordered_accounts: Vec<_> = p
+            .get_account_store_ref()
+            .iter()
+            .map(|(_, v)| v)
+            .cloned()
+            .collect();
+        ordered_accounts.sort_by_key(|acc| acc.id);
+        for (_, account) in p.get_account_store_ref().iter() {
+            egress.serialize(account).expect("can write account row");
+            count += 1;
+        }
+        assert_eq!(
+            2, count,
+            "Did not receive the expected amount of account statements"
+        );
+        assert_eq!(
+            vec![
+                Account {
+                    id: 1,
+                    locked: false,
+                    available: dec!(1.0),
+                    held: dec!(2.0)
+                },
+                Account {
+                    id: 2,
+                    locked: false,
+                    available: dec!(2.0),
+                    held: dec!(0)
+                }
+            ],
+            ordered_accounts
+        )
+    }
+
+    #[test]
+    fn process_simple_all_types() {
+        // TODO(juf): Create test file, maybe write generator function
+        let mut ingest =
+            default_csv_ingest(Path::new("tests/sample-3-accounts-all-types-simple-1.csv"))
+                .expect("Can open file and create ingest");
+        let mut p = Processor::new();
+        let iter = ingest.deserialize();
+        let mut count = 0;
+        for row in iter {
+            let txn: Transaction = row.expect("Should be valid transaction");
+            p.process_one(txn);
+            count += 1;
+        }
+        assert_eq!(
+            20, count,
+            "Did not receive the expected amount of transactions"
+        );
+        let out_dir = tempfile::tempdir().expect("Could not create tempdir");
+        let out_path = out_dir.path().join("out.csv");
+        println!("out path: {:?}", out_path);
+        let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
+        let mut count = 0;
+        let mut ordered_accounts: Vec<_> = p
+            .get_account_store_ref()
+            .iter()
+            .map(|(_, v)| v)
+            .cloned()
+            .collect();
+        ordered_accounts.sort_by_key(|acc| acc.id);
+        for (_, account) in p.get_account_store_ref().iter() {
+            egress.serialize(account).expect("can write account row");
+            count += 1;
+        }
+        assert_eq!(
+            5, count,
+            "Did not receive the expected amount of account statements"
+        );
+        assert_eq!(
+            vec![
+                Account {
+                    id: 1,
+                    locked: false,
+                    available: dec!(1.0),
+                    held: dec!(2.0)
+                },
+                Account {
+                    id: 2,
+                    locked: false,
+                    available: dec!(2.0),
+                    held: dec!(0)
+                }
+            ],
+            ordered_accounts
+        )
     }
 }
