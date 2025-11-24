@@ -96,7 +96,7 @@ pub(crate) mod accounts {
 
         pub(crate) fn total(&self) -> Decimal {
             // TODO(juf): Check overflow behaviour of Decimal library
-            self.available - self.held
+            self.available + self.held
         }
 
         pub(crate) fn dispute(&mut self, amount: Decimal) {
