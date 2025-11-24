@@ -1,24 +1,24 @@
 use std::{
     fs::{File, OpenOptions},
-    io::{BufReader, Stdin},
+    io::Stdin,
     path::Path,
 };
 
-pub(crate) fn default_csv_ingest(filename: &Path) -> std::io::Result<csv::Reader<BufReader<File>>> {
+pub(crate) fn default_csv_ingest(filename: &Path) -> std::io::Result<csv::Reader<File>> {
     let f = OpenOptions::new().read(true).open(filename)?;
     // NOTE(juf): The buffer size can/should be adjusted based on the use-case.
-    let buf = BufReader::new(f);
+    // NOTE(juf): csv states input is already buffered, so we opt for not pre-pending another
+    // BufWriter here.
     let reader = csv::ReaderBuilder::new()
         .trim(csv::Trim::All)
-        .from_reader(buf);
+        .from_reader(f);
     Ok(reader)
 }
 
-pub(crate) fn ingest_from_stdin() -> std::io::Result<csv::Reader<BufReader<Stdin>>> {
+pub(crate) fn ingest_from_stdin() -> std::io::Result<csv::Reader<Stdin>> {
     // NOTE(juf): The buffer size can/should be adjusted based on the use-case.
-    let buf = BufReader::new(std::io::stdin());
     let reader = csv::ReaderBuilder::new()
         .trim(csv::Trim::All)
-        .from_reader(buf);
+        .from_reader(std::io::stdin());
     Ok(reader)
 }
