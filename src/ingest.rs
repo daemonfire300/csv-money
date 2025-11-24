@@ -1,6 +1,5 @@
 use std::{
     fs::{File, OpenOptions},
-    io::Stdin,
     path::Path,
 };
 
