@@ -1,6 +1,6 @@
 # Dummy Ledger implementation
 
-I do not like [Actual](https://www.actualbudget.com/) [Budget](https://github.com/actualbudget/actual). We used it for almost a year now and I have come to the conclusion that it does not suite my needs.
+I do not like [Actual](https://www.actualbudget.com/) [Budget](https://github.com/actualbudget/actual). We used it for almost a year now and I have come to the conclusion that it does not suit my needs.
 So I am going to write a minimalistic double-entry bookkeeping solution instead that I can script/tweak as I wish and properly automate using a minimalistic UI.
 
 This is currently not a real [double-entry bookkeeping](https://quickbooks.intuit.com/r/bookkeeping/complete-guide-to-double-entry-bookkeeping/) solution but a first exploration into how to process and also import bank statements (simplified).
