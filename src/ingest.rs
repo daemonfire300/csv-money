@@ -14,11 +14,3 @@ pub(crate) fn default_csv_ingest(filename: &Path) -> std::io::Result<csv::Reader
         .from_reader(f);
     Ok(reader)
 }
-
-pub(crate) fn ingest_from_stdin() -> std::io::Result<csv::Reader<Stdin>> {
-    // NOTE(juf): The buffer size can/should be adjusted based on the use-case.
-    let reader = csv::ReaderBuilder::new()
-        .trim(csv::Trim::All)
-        .from_reader(std::io::stdin());
-    Ok(reader)
-}
