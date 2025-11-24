@@ -7,8 +7,11 @@ use crate::objects::{
     transactions::{Metadata, Transaction, TransactionState},
 };
 
+/// Processor is the core which get's feed individual transactions and manages the account and
+/// transaction (simplistic) "ledger".
 pub(crate) struct Processor {
     account_store: HashMap<u16, Account>,
+    // Store transaction state to avoid incorrect "state" transitions, e.g., resolve to dispute.
     txn_cache: HashMap<u32, (Decimal, TransactionState)>,
 }
 
@@ -31,7 +34,7 @@ impl Processor {
         let acc_id = metadata.client;
         let acc = self.create_account_if_not_exists(acc_id);
         if acc.is_locked() {
-            // skip any further transactions? The PDF does not really specify what locked means
+            // skip any further transactions? I it is not really specify what locked means
             return;
         }
         match txn {

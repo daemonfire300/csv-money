@@ -1,27 +1,33 @@
-use std::{env::args, error::Error, fs::OpenOptions};
+use std::{env::args, path::Path};
 
-use crate::objects::accounts::Account;
+use crate::{
+    ingest::{default_csv_ingest, ingest_from_stdin},
+    objects::transactions::Transaction,
+    processor::Processor,
+};
 
 pub(crate) mod deserialize;
 pub(crate) mod egress;
+pub(crate) mod error;
 pub(crate) mod ingest;
 pub(crate) mod objects;
 pub(crate) mod processor;
 pub(crate) mod serialize;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    println!("Account Size {}", size_of::<Account>());
+fn main() -> Result<(), error::Error> {
     let input_file_name = if let Some(name) = args().next() {
         name
     } else {
         // TODO(juf): Add nicer error
-        panic!("Requires input file")
+        return Err(error::Error::MissingArgument);
     };
-    let mut f = OpenOptions::new().read(true).open(&input_file_name)?;
-    // TODO(juf): Remove trim from underlying Deserializer
-    let reader = csv::ReaderBuilder::new()
-        .trim(csv::Trim::All)
-        .from_reader(&mut f);
+    let mut ingest = default_csv_ingest(Path::new(&input_file_name))?;
+    let mut p = Processor::new();
+    let iter = ingest.deserialize();
+    for row in iter {
+        let txn: Transaction = row?;
+        p.process_one(txn);
+    }
 
     Ok(())
 }
