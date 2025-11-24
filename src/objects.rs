@@ -35,7 +35,7 @@ pub(crate) mod transactions {
     pub enum TransactionState {
         Initial(InitialState),
         Finalized,
-        Disputed,
+        Disputed(InitialState),
     }
 
     pub enum InitialState {
@@ -104,13 +104,32 @@ pub(crate) mod accounts {
             self.available -= amount;
         }
 
+        pub(crate) fn dispute_withdrawal(&mut self, amount: Decimal) {
+            self.held += amount;
+        }
+
         pub(crate) fn resolve(&mut self, amount: Decimal) {
             self.held -= amount;
             self.available += amount;
         }
 
+        pub(crate) fn resolve_withdrawal(&mut self, amount: Decimal) {
+            self.held -= amount;
+        }
+
         pub(crate) fn chargeback(&mut self, amount: Decimal) {
             self.held -= amount;
+            self.locked = true;
+        }
+
+        pub(crate) fn chargeback_withdrawal(&mut self, amount: Decimal) {
+            // NOTE(juf): Chargeback of withdrawal is not really clear to me
+            // This might have some logical insonsistencies or even bugs in it.
+            // I noticed this way too late and weaved it in post-hoc.
+            // Technically we also "release" the held funds, so it should be same.
+            // But we should credit it back to the account, since it was withdrawn from it.
+            self.held -= amount;
+            self.available += amount;
             self.locked = true;
         }
 

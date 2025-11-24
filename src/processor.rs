@@ -68,24 +68,21 @@ impl Processor {
             }
             Transaction::Dispute(Metadata { client: _, tx_id }) => {
                 if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
-                    && let Some(acc) = self.account_store.get_mut(&acc_id) {
+                    && let Some(acc) = self.account_store.get_mut(&acc_id)
+                {
                     match state {
-        TransactionState::Initial(InitialState::Deposit) => {
-                        acc.dispute(*amount);
-                        *state = TransactionState::Disputed;
+                        TransactionState::Initial(InitialState::Deposit) => {
+                            acc.dispute(*amount);
+                            *state = TransactionState::Disputed(InitialState::Deposit);
                         }
-        TransactionState::Initial(InitialState::Withdrawal) => {
-                            let mut amount = amount.clone();
-                            amount.set_sign_negative(true);
-                        acc.dispute(amount);
-                        *state = TransactionState::Disputed;
+                        TransactionState::Initial(InitialState::Withdrawal) => {
+                            acc.dispute_withdrawal(*amount);
+                            *state = TransactionState::Disputed(InitialState::Withdrawal);
                         }
-                        _ => {},
-                }
+                        _ => {} // Do nothing. There is not valid transition for this state and
+                                // operation type.
                     }
-                    // Do nothing. There is not valid transition for this state and
-                    // operation type.
-                ;
+                };
             }
             Transaction::Resolve(Metadata { client: _, tx_id }) => {
                 if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
@@ -94,12 +91,18 @@ impl Processor {
                     // NOTE(juf): Once a transaction has been Resolved, we could think about
                     // removing it from the cache, _but_ what if we receive the same transaction
                     // again later? We would deposit the amount again.
-                    if let TransactionState::Disputed = state {
-                        acc.resolve(*amount);
-                        *state = TransactionState::Finalized;
+                    match state {
+                        TransactionState::Disputed(InitialState::Deposit) => {
+                            acc.resolve(*amount);
+                            *state = TransactionState::Finalized;
+                        }
+                        TransactionState::Disputed(InitialState::Withdrawal) => {
+                            acc.resolve_withdrawal(*amount);
+                            *state = TransactionState::Finalized;
+                        }
+                        _ => {} // Do nothing. There is not valid transition for this state and
+                                // operation type.
                     }
-                    // Do nothing. There is not valid transition for this state and
-                    // operation type.
                 };
             }
             Transaction::Chargeback(Metadata { client: _, tx_id }) => {
@@ -109,9 +112,17 @@ impl Processor {
                     // NOTE(juf): Once a transaction has been charged back, we could think about
                     // removing it from the cache, _but_ what if we receive the same transaction
                     // again later? We would deposit the amount again.
-                    if let TransactionState::Disputed = state {
-                        acc.chargeback(*amount);
-                        *state = TransactionState::Finalized;
+                    match state {
+                        TransactionState::Disputed(InitialState::Deposit) => {
+                            acc.chargeback(*amount);
+                            *state = TransactionState::Finalized;
+                        }
+                        TransactionState::Disputed(InitialState::Withdrawal) => {
+                            acc.chargeback_withdrawal(*amount);
+                            *state = TransactionState::Finalized;
+                        }
+                        _ => {} // Do nothing. There is not valid transition for this state and
+                                // operation type.
                     }
                     // Else: Do nothing. There is not valid transition for this state and
                     // operation type.
@@ -325,7 +336,7 @@ mod tests {
     }
 
     #[test]
-    fn process_disput_withdrawal() {
+    fn process_dispute_withdrawal() {
         // TODO(juf): Create test file, maybe write generator function
         let mut ingest = default_csv_ingest(Path::new("tests/dispute-withdrawal-simple-1.csv"))
             .expect("Can open file and create ingest");
@@ -360,8 +371,185 @@ mod tests {
             vec![Account {
                 id: 1,
                 locked: false,
-                available: dec!(13.3456),
-                held: dec!(2.0)
+                available: dec!(154.9999),
+                held: dec!(0.0)
+            },],
+            ordered_accounts
+        )
+    }
+
+    #[test]
+    fn process_other_simple_single_account_case() {
+        // TODO(juf): Create test file, maybe write generator function
+        let mut ingest = default_csv_ingest(Path::new("tests/sample2.csv"))
+            .expect("Can open file and create ingest");
+        let mut p = Processor::new();
+        let iter = ingest.deserialize();
+        for row in iter {
+            let txn: Transaction = row.expect("Should be valid transaction");
+            p.process_one(txn);
+        }
+        let out_dir = tempfile::tempdir().expect("Could not create tempdir");
+        let out_path = out_dir.path().join("out.csv");
+        // NOTE(juf): Instead of asserting a vec we could also use snapshot testing and compare the
+        // test output csv with a snapshot csv
+        let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
+        let mut count = 0;
+        let mut ordered_accounts: Vec<_> = p
+            .get_account_store_ref()
+            .iter()
+            .map(|(_, v)| v)
+            .cloned()
+            .collect();
+        ordered_accounts.sort_by_key(|acc| acc.id);
+        for (_, account) in p.get_account_store_ref().iter() {
+            egress.serialize(account).expect("can write account row");
+            count += 1;
+        }
+        assert_eq!(
+            1, count,
+            "Did not receive the expected amount of account statements"
+        );
+        assert_eq!(
+            vec![Account {
+                id: 1,
+                locked: false,
+                available: dec!(99.9999),
+                held: dec!(0.0)
+            },],
+            ordered_accounts
+        )
+    }
+
+    #[test]
+    fn process_dispute_withdrawal_and_then_deposit() {
+        // TODO(juf): Create test file, maybe write generator function
+        let mut ingest =
+            default_csv_ingest(Path::new("tests/dispute-withdrawal-and-deposit-1.csv"))
+                .expect("Can open file and create ingest");
+        let mut p = Processor::new();
+        let iter = ingest.deserialize();
+        for row in iter {
+            let txn: Transaction = row.expect("Should be valid transaction");
+            p.process_one(txn);
+        }
+        let out_dir = tempfile::tempdir().expect("Could not create tempdir");
+        let out_path = out_dir.path().join("out.csv");
+        // NOTE(juf): Instead of asserting a vec we could also use snapshot testing and compare the
+        // test output csv with a snapshot csv
+        let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
+        let mut count = 0;
+        let mut ordered_accounts: Vec<_> = p
+            .get_account_store_ref()
+            .iter()
+            .map(|(_, v)| v)
+            .cloned()
+            .collect();
+        ordered_accounts.sort_by_key(|acc| acc.id);
+        for (_, account) in p.get_account_store_ref().iter() {
+            egress.serialize(account).expect("can write account row");
+            count += 1;
+        }
+        assert_eq!(
+            1, count,
+            "Did not receive the expected amount of account statements"
+        );
+        assert_eq!(
+            vec![Account {
+                id: 1,
+                locked: false,
+                available: dec!(254.9999),
+                held: dec!(45.0001)
+            },],
+            ordered_accounts
+        )
+    }
+
+    #[test]
+    fn process_dispute_withdrawal_and_then_deposit_then_resolve() {
+        // TODO(juf): Create test file, maybe write generator function
+        let mut ingest = default_csv_ingest(Path::new(
+            "tests/dispute-withdrawal-and-deposit-then-resolve-1.csv",
+        ))
+        .expect("Can open file and create ingest");
+        let mut p = Processor::new();
+        let iter = ingest.deserialize();
+        for row in iter {
+            let txn: Transaction = row.expect("Should be valid transaction");
+            p.process_one(txn);
+        }
+        let out_dir = tempfile::tempdir().expect("Could not create tempdir");
+        let out_path = out_dir.path().join("out.csv");
+        // NOTE(juf): Instead of asserting a vec we could also use snapshot testing and compare the
+        // test output csv with a snapshot csv
+        let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
+        let mut count = 0;
+        let mut ordered_accounts: Vec<_> = p
+            .get_account_store_ref()
+            .iter()
+            .map(|(_, v)| v)
+            .cloned()
+            .collect();
+        ordered_accounts.sort_by_key(|acc| acc.id);
+        for (_, account) in p.get_account_store_ref().iter() {
+            egress.serialize(account).expect("can write account row");
+            count += 1;
+        }
+        assert_eq!(
+            1, count,
+            "Did not receive the expected amount of account statements"
+        );
+        assert_eq!(
+            vec![Account {
+                id: 1,
+                locked: false,
+                available: dec!(254.9999),
+                held: dec!(0.0)
+            },],
+            ordered_accounts
+        )
+    }
+
+    #[test]
+    fn process_dispute_withdrawal_and_then_deposit_then_chargeback() {
+        // TODO(juf): Create test file, maybe write generator function
+        let mut ingest = default_csv_ingest(Path::new(
+            "tests/dispute-withdrawal-and-deposit-then-chargeback-1.csv",
+        ))
+        .expect("Can open file and create ingest");
+        let mut p = Processor::new();
+        let iter = ingest.deserialize();
+        for row in iter {
+            let txn: Transaction = row.expect("Should be valid transaction");
+            p.process_one(txn);
+        }
+        let out_dir = tempfile::tempdir().expect("Could not create tempdir");
+        let out_path = out_dir.path().join("out.csv");
+        // NOTE(juf): Instead of asserting a vec we could also use snapshot testing and compare the
+        // test output csv with a snapshot csv
+        let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
+        let mut count = 0;
+        let mut ordered_accounts: Vec<_> = p
+            .get_account_store_ref()
+            .iter()
+            .map(|(_, v)| v)
+            .cloned()
+            .collect();
+        ordered_accounts.sort_by_key(|acc| acc.id);
+        for (_, account) in p.get_account_store_ref().iter() {
+            egress.serialize(account).expect("can write account row");
+            count += 1;
+        }
+        assert_eq!(
+            1, count,
+            "Did not receive the expected amount of account statements"
+        );
+        assert_eq!(
+            vec![Account {
+                id: 1,
+                locked: true,
+                available: dec!(300.0),
+                held: dec!(0.0)
             },],
             ordered_accounts
         )

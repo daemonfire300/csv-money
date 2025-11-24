@@ -1,11 +1,21 @@
 # Dummy Ledger implementation
 
-I do not like Actual Budget. We used it for almost a year now and I have come to the conclusion that it does not suite my needs.
+I do not like [Actual](https://www.actualbudget.com/) [Budget](https://github.com/actualbudget/actual). We used it for almost a year now and I have come to the conclusion that it does not suite my needs.
 So I am going to write a minimalistic double-entry bookkeeping solution instead that I can script/tweak as I wish and properly automate using a minimalistic UI.
 
-This is currently not a real double-entry bookkeeping solution but a first exploration into how to process and also import bank statements (simplified).
+This is currently not a real [double-entry bookkeeping](https://quickbooks.intuit.com/r/bookkeeping/complete-guide-to-double-entry-bookkeeping/) solution but a first exploration into how to process and also import bank statements (simplified).
 
 # Notes
+
+## Implementation Details
+
+The initial draft was built with the assumption that you cannot chargeback/dispute withdrawals. Later I realized this should probably also be able.
+This is when the code got a bit more convoluted in my opinion, so I would probably do another refactor with that in my mind when I do the real double-entry bookkeeping implementation (where I have to do individual/multiple transactions for cross-account movements).
+
+## Misc
+
+    1. `pub(crate)` is not used 100% consistently (in some places I forgot to correct it)
+    2. Decimals are not handled consistently, sometimes 0 is 0 and sometimes it's 0.0, going to change this some other day (there is an option in the library to fixate this)
 
 ## git
 
