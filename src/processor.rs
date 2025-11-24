@@ -62,14 +62,12 @@ impl Processor {
                 if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
-                    match state {
-                        TransactionState::Initial => {
-                            acc.dispute(*amount);
-                            *state = TransactionState::Disputed;
-                        }
-                        _ => {} // Do nothing. There is not valid transition for this state and
-                                // operation type.
+                    if let TransactionState::Initial = state {
+                        acc.dispute(*amount);
+                        *state = TransactionState::Disputed;
                     }
+                    // Do nothing. There is not valid transition for this state and
+                    // operation type.
                 };
             }
             Transaction::Resolve(Metadata { client: _, tx_id }) => {
@@ -79,14 +77,12 @@ impl Processor {
                     // NOTE(juf): Once a transaction has been Resolved, we could think about
                     // removing it from the cache, _but_ what if we receive the same transaction
                     // again later? We would deposit the amount again.
-                    match state {
-                        TransactionState::Disputed => {
-                            acc.resolve(*amount);
-                            *state = TransactionState::Finalized;
-                        }
-                        _ => {} // Do nothing. There is not valid transition for this state and
-                                // operation type.
+                    if let TransactionState::Disputed = state {
+                        acc.resolve(*amount);
+                        *state = TransactionState::Finalized;
                     }
+                    // Do nothing. There is not valid transition for this state and
+                    // operation type.
                 };
             }
             Transaction::Chargeback(Metadata { client: _, tx_id }) => {
@@ -96,14 +92,12 @@ impl Processor {
                     // NOTE(juf): Once a transaction has been charged back, we could think about
                     // removing it from the cache, _but_ what if we receive the same transaction
                     // again later? We would deposit the amount again.
-                    match state {
-                        TransactionState::Disputed => {
-                            acc.chargeback(*amount);
-                            *state = TransactionState::Finalized;
-                        }
-                        _ => {} // Do nothing. There is not valid transition for this state and
-                                // operation type.
+                    if let TransactionState::Disputed = state {
+                        acc.chargeback(*amount);
+                        *state = TransactionState::Finalized;
                     }
+                    // Else: Do nothing. There is not valid transition for this state and
+                    // operation type.
                 };
             }
         };
