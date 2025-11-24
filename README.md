@@ -79,3 +79,7 @@ dev-dependencies]
 For my work in progress tiny systemd-creds helper lib I went and copied nightly (not sure if it's still nighlty now) rust std code instead and build only the required parts I need for a tempdir. Also since it's linux only I do not need to copy all that many OS specific files. [https://github.com/daemonfire300/systemd-creds-rs/blob/master/src/lib.rs#L87-L136](https://github.com/daemonfire300/systemd-creds-rs/blob/master/src/lib.rs#L87-L136)
 At the end it's a trade-off. The linked solution does not have the neat feature of `tempfile` with the `Drop` trait for example.
 
+
+# Disclaimer
+
+I wrote this while moving between cities.
