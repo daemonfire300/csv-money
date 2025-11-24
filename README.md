@@ -7,6 +7,10 @@ This is currently not a real double-entry bookkeeping solution but a first explo
 
 # Notes
 
+## git
+
+The commit messages are a bit loose, excuse me.
+
 ## nix
 
 If you should be ever so curious and want to run this using nix (flakes):

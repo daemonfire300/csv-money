@@ -1,8 +1,4 @@
-use std::{
-    fs::{File, OpenOptions},
-    io::{BufWriter, Stdout},
-    path::Path,
-};
+use std::io::{BufWriter, Stdout};
 
 pub(crate) fn stdout_csv_egress() -> std::io::Result<csv::Writer<BufWriter<Stdout>>> {
     // NOTE(juf): The buffer size can/should be adjusted based on the use-case.
