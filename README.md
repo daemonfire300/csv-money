@@ -50,7 +50,7 @@ Assuming all statements are in ASCII we could maybe optimize the deserialization
 
 ### In General
 
-I did not benchmark this dummy project. I went with two plain `HashMap`s. We could have a more distrubed approach where the input get's fanned out into N worker streams, where workers are sharded by accounts and only receive the respective transactions. They then keep their local state and submit an aggregated account update every M ticks to an aggregator/final/"true" append only log. E.g., in a CQRS style manner, since every transaction (type) is a kind of command.
+I did not benchmark this dummy project. I went with two plain `HashMap`s. We could have a more distrubed approach where the input get's fanned out into N worker streams, where workers are sharded by accounts and only receive the respective transactions. They then keep their local state and submit an aggregated account update every M ticks to an aggregator/final/"true" append only log. E.g., in a CQRS ([3 years old CQRS golang demo](https://github.com/daemonfire300/cqrs-demo-go)) style manner, since every transaction (type) is a kind of command.
 
 
 ## Dependencies
