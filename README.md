@@ -5,6 +5,12 @@ So I am going to write a minimalistic double-entry bookkeeping solution instead 
 
 This is currently not a real [double-entry bookkeeping](https://quickbooks.intuit.com/r/bookkeeping/complete-guide-to-double-entry-bookkeeping/) solution but a first exploration into how to process and also import bank statements (simplified).
 
+# Todo
+
+  1. try minimize account HashMap access
+  2. test with max u32 transactions
+  3. add tracy profiling with feature flag
+
 # Notes
 
 ## Implementation Details
