@@ -40,35 +40,35 @@ impl Processor {
         match txn {
             Transaction::Deposit(Metadata { client: _, tx_id }, amount) => {
                 if let Some(acc) = self.account_store.get_mut(&acc_id) {
-                    match self.txn_cache.get(&tx_id) {
-                        None => {
-                            acc.deposit(amount);
-                            self.txn_cache
-                                .insert(tx_id, (amount, TransactionState::default()));
-                        }
-                        _ => {} // ignore double reporting of deposit
+                    if let None = self.txn_cache.get(&tx_id) {
+                        acc.deposit(amount);
+                        self.txn_cache
+                            .insert(tx_id, (amount, TransactionState::default()));
                     };
+                    // ELSE ignore double reporting of deposit
                 }
             }
             Transaction::Withdrawal(Metadata { client: _, tx_id }, amount) => {
                 if let Some(acc) = self.account_store.get_mut(&acc_id) {
-                    acc.withdraw(amount);
-                    self.txn_cache
-                        .entry(tx_id)
-                        .or_insert((amount, TransactionState::default()));
+                    if let None = self.txn_cache.get(&tx_id) {
+                        acc.withdraw(amount);
+                        self.txn_cache
+                            .entry(tx_id)
+                            .or_insert((amount, TransactionState::default()));
+                    }
+                    // ELSE ignore double reporting of withdraw
                 }
             }
             Transaction::Dispute(Metadata { client: _, tx_id }) => {
                 if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
-                {
-                    if let TransactionState::Initial = state {
+                    && let TransactionState::Initial = state {
                         acc.dispute(*amount);
                         *state = TransactionState::Disputed;
                     }
                     // Do nothing. There is not valid transition for this state and
                     // operation type.
-                };
+                ;
             }
             Transaction::Resolve(Metadata { client: _, tx_id }) => {
                 if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
@@ -135,7 +135,7 @@ mod tests {
             count += 1;
         }
         assert_eq!(
-            11, count,
+            16, count,
             "Did not receive the expected amount of transactions"
         );
         let out_dir = tempfile::tempdir().expect("Could not create tempdir");
@@ -246,7 +246,7 @@ mod tests {
             count += 1;
         }
         assert_eq!(
-            26, count,
+            31, count,
             "Did not receive the expected amount of transactions"
         );
         let out_dir = tempfile::tempdir().expect("Could not create tempdir");
@@ -291,7 +291,7 @@ mod tests {
                 Account {
                     id: 4,
                     locked: false,
-                    available: dec!(2.0),
+                    available: dec!(1.8889),
                     held: dec!(0)
                 },
                 Account {

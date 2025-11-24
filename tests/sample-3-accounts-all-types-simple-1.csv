@@ -25,3 +25,8 @@ deposit, 10, 18391, 9999.7888
 deposit, 10, 90016, 82.0 
 deposit, 10, 116, 1.0 
 deposit, 4, 1013, 1.0
+withdrawal, 4, 1111, 0.1111
+withdrawal, 4, 1111, 99.0
+withdrawal, 4, 1111, 14.0
+withdrawal, 4, 1111, 11.0
+withdrawal, 4, 1111, 0.1111
