@@ -332,7 +332,12 @@ mod tests {
                 }
             ],
             ordered_accounts
-        )
+        );
+        // TODO(juf): Missing in other tests, should have helper method to auto-verify this in each
+        // test.
+        for acc in ordered_accounts.iter() {
+            assert_eq!(acc.total(), acc.available + acc.held);
+        }
     }
 
     #[test]
