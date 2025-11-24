@@ -31,6 +31,7 @@
             openssl # for convenience, using rusttls is fine too
             pkg-config
             eza # optional
+            ripgrep
             fd # optional
             rust-core
             stable-rust-analyzer

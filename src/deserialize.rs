@@ -108,7 +108,6 @@ mod tests {
         "#;
         let mut rdr = csv::Reader::from_reader(doc.as_bytes());
         let mut iter = rdr.deserialize();
-        //let _tx: Transaction = r.expect("could not deserialize transaction from row");
         let next: Option<Result<Transaction>> = iter.next();
         assert!(next.expect("row should be Some").is_err());
     }
@@ -123,7 +122,6 @@ deposit, 2, 3, 4.0"#;
         let headers = rdr.headers().expect("should have headers");
         println!("{:?}", headers);
         let mut iter = rdr.deserialize();
-        //let _tx: Transaction = r.expect("could not deserialize transaction from row");
         let next: Option<Result<Transaction>> = iter.next();
         assert_eq!(
             next.expect("row should be Some")
@@ -142,7 +140,6 @@ withdrawal, 2, 4, 4.0"#;
         let headers = rdr.headers().expect("should have headers");
         println!("{:?}", headers);
         let mut iter = rdr.deserialize();
-        //let _tx: Transaction = r.expect("could not deserialize transaction from row");
         let next: Option<Result<Transaction>> = iter.next();
         assert_eq!(
             next.expect("row should be Some")

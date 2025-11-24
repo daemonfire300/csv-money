@@ -1,4 +1,18 @@
-use std::io::{BufWriter, Stdout};
+use std::{
+    fs::{File, OpenOptions},
+    io::{BufWriter, Stdout},
+    path::Path,
+};
+
+pub(crate) fn default_csv_egress(path: &Path) -> std::io::Result<csv::Writer<BufWriter<File>>> {
+    // NOTE(juf): The buffer size can/should be adjusted based on the use-case.
+    // NOTE(juf): csv already comes with buffered writes. This is just an example how buffered
+    // output could look like if csv would not have it builtin
+    let f = OpenOptions::new().create(true).truncate(true).open(path)?;
+    let buf = BufWriter::new(f);
+    let writer = csv::WriterBuilder::new().from_writer(buf);
+    Ok(writer)
+}
 
 pub(crate) fn stdout_csv_egress() -> std::io::Result<csv::Writer<BufWriter<Stdout>>> {
     // NOTE(juf): The buffer size can/should be adjusted based on the use-case.
