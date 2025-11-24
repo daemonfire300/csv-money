@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 
 use crate::objects::{
     accounts::Account,
-    transactions::{Metadata, Transaction, TransactionState},
+    transactions::{InitialState, Metadata, Transaction, TransactionState},
 };
 
 /// Processor is the core which get's feed individual transactions and manages the account and
@@ -42,7 +42,12 @@ impl Processor {
                 if let Some(acc) = self.account_store.get_mut(&acc_id) {
                     self.txn_cache.entry(tx_id).or_insert_with(|| {
                         acc.deposit(amount);
-                        (amount, TransactionState::default())
+                        (
+                            amount,
+                            TransactionState::Initial(
+                                crate::objects::transactions::InitialState::Deposit,
+                            ),
+                        )
                     });
                     // ELSE ignore double reporting of deposit
                 };
@@ -51,17 +56,32 @@ impl Processor {
                 if let Some(acc) = self.account_store.get_mut(&acc_id) {
                     self.txn_cache.entry(tx_id).or_insert_with(|| {
                         acc.withdraw(amount);
-                        (amount, TransactionState::default())
+                        (
+                            amount,
+                            TransactionState::Initial(
+                                crate::objects::transactions::InitialState::Withdrawal,
+                            ),
+                        )
                     });
                     // ELSE ignore double reporting of withdraw
                 }
             }
             Transaction::Dispute(Metadata { client: _, tx_id }) => {
                 if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
-                    && let Some(acc) = self.account_store.get_mut(&acc_id)
-                    && let TransactionState::Initial = state {
+                    && let Some(acc) = self.account_store.get_mut(&acc_id) {
+                    match state {
+        TransactionState::Initial(InitialState::Deposit) => {
                         acc.dispute(*amount);
                         *state = TransactionState::Disputed;
+                        }
+        TransactionState::Initial(InitialState::Withdrawal) => {
+                            let mut amount = amount.clone();
+                            amount.set_sign_negative(true);
+                        acc.dispute(amount);
+                        *state = TransactionState::Disputed;
+                        }
+                        _ => {},
+                }
                     }
                     // Do nothing. There is not valid transition for this state and
                     // operation type.
@@ -300,6 +320,49 @@ mod tests {
                     held: dec!(0.00)
                 }
             ],
+            ordered_accounts
+        )
+    }
+
+    #[test]
+    fn process_disput_withdrawal() {
+        // TODO(juf): Create test file, maybe write generator function
+        let mut ingest = default_csv_ingest(Path::new("tests/dispute-withdrawal-simple-1.csv"))
+            .expect("Can open file and create ingest");
+        let mut p = Processor::new();
+        let iter = ingest.deserialize();
+        for row in iter {
+            let txn: Transaction = row.expect("Should be valid transaction");
+            p.process_one(txn);
+        }
+        let out_dir = tempfile::tempdir().expect("Could not create tempdir");
+        let out_path = out_dir.path().join("out.csv");
+        // NOTE(juf): Instead of asserting a vec we could also use snapshot testing and compare the
+        // test output csv with a snapshot csv
+        let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
+        let mut count = 0;
+        let mut ordered_accounts: Vec<_> = p
+            .get_account_store_ref()
+            .iter()
+            .map(|(_, v)| v)
+            .cloned()
+            .collect();
+        ordered_accounts.sort_by_key(|acc| acc.id);
+        for (_, account) in p.get_account_store_ref().iter() {
+            egress.serialize(account).expect("can write account row");
+            count += 1;
+        }
+        assert_eq!(
+            1, count,
+            "Did not receive the expected amount of account statements"
+        );
+        assert_eq!(
+            vec![Account {
+                id: 1,
+                locked: false,
+                available: dec!(13.3456),
+                held: dec!(2.0)
+            },],
             ordered_accounts
         )
     }

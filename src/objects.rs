@@ -32,12 +32,15 @@ pub(crate) mod transactions {
     /// has been neither disputed/resolved/chargedback if it's `Initial`.
     /// Been resolved or chargedback if it's `Finalized`.
     /// Is under dispute `Disputed`.
-    #[derive(Default)]
     pub enum TransactionState {
-        #[default]
-        Initial,
+        Initial(InitialState),
         Finalized,
         Disputed,
+    }
+
+    pub enum InitialState {
+        Deposit,
+        Withdrawal,
     }
 
     impl Transaction {
