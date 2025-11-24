@@ -1,5 +1,5 @@
 use crate::objects::transactions::*;
-use serde::de::{Deserialize, Error, MapAccess, Visitor};
+use serde::de::{Deserialize, Error, Visitor};
 use std::fmt;
 
 #[derive(Default)]

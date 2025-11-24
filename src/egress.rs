@@ -1,6 +1,6 @@
 use std::{
     fs::{File, OpenOptions},
-    io::BufWriter,
+    io::{BufWriter, Stdout},
     path::Path,
 };
 
@@ -12,6 +12,13 @@ pub(crate) fn default_csv_egress(filename: &Path) -> std::io::Result<csv::Writer
         .open(filename)?;
     // NOTE(juf): The buffer size can/should be adjusted based on the use-case.
     let buf = BufWriter::new(f);
+    let writer = csv::WriterBuilder::new().from_writer(buf);
+    Ok(writer)
+}
+
+pub(crate) fn stdout_csv_egress() -> std::io::Result<csv::Writer<BufWriter<Stdout>>> {
+    // NOTE(juf): The buffer size can/should be adjusted based on the use-case.
+    let buf = BufWriter::new(std::io::stdout());
     let writer = csv::WriterBuilder::new().from_writer(buf);
     Ok(writer)
 }

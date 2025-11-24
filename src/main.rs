@@ -1,8 +1,7 @@
 use std::{env::args, path::Path};
 
 use crate::{
-    ingest::default_csv_ingest,
-    objects::transactions::Transaction,
+    egress::stdout_csv_egress, ingest::default_csv_ingest, objects::transactions::Transaction,
     processor::Processor,
 };
 
@@ -27,6 +26,10 @@ fn main() -> Result<(), error::Error> {
     for row in iter {
         let txn: Transaction = row?;
         p.process_one(txn);
+    }
+    let mut egress = stdout_csv_egress()?;
+    for (_, account) in p.get_account_store_ref().iter() {
+        egress.serialize(account)?;
     }
 
     Ok(())

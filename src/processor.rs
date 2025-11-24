@@ -248,6 +248,8 @@ mod tests {
         );
         let out_dir = tempfile::tempdir().expect("Could not create tempdir");
         let out_path = out_dir.path().join("out.csv");
+        // NOTE(juf): Instead of asserting a vec we could also use snapshot testing and compare the
+        // test output csv with a snapshot csv
         let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
         let mut count = 0;
         let mut ordered_accounts: Vec<_> = p

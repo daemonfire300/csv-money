@@ -40,8 +40,6 @@ pub(crate) mod transactions {
         Disputed,
     }
 
-    
-
     impl Transaction {
         pub(crate) fn get_metadata(&self) -> &Metadata {
             match self {
@@ -68,10 +66,7 @@ pub(crate) mod transactions {
 }
 
 pub(crate) mod accounts {
-    use rust_decimal::{Decimal, dec};
-    
-
-    const ZERO: Decimal = dec!(0);
+    use rust_decimal::Decimal;
 
     // println!("Account Size {}", size_of::<Account>());
     // >> 36
