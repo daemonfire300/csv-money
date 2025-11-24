@@ -23,6 +23,16 @@ I did not add security scanning yet, but I intend to in the future because [http
 
 ## Performance
 
+### Decimal
+
+The decimal lib is a bit overkill for regular bookkeeping, there is "too much" precision and we could probably use less bytes, but it's convenient.
+
+### UTF-8 vs "raw"
+
+Assuming all statements are in ASCII we could maybe optimize the deserialization here, but that's just a hunch. I have not looked into this yet and it might very well end up not improving things depending on the volume of transactions.
+
+### In General
+
 I did not benchmark this dummy project. I went with two plain `HashMap`s. We could have a more distrubed approach where the input get's fanned out into N worker streams, where workers are sharded by accounts and only receive the respective transactions. They then keep their local state and submit an aggregated account update every M ticks to an aggregator/final/"true" append only log. E.g., in a CQRS style manner, since every transaction (type) is a kind of command.
 
 
