@@ -14,8 +14,8 @@ This is when the code got a bit more convoluted in my opinion, so I would probab
 
 ## Misc
 
-    1. `pub(crate)` is not used 100% consistently (in some places I forgot to correct it)
-    2. Decimals are not handled consistently, sometimes 0 is 0 and sometimes it's 0.0, going to change this some other day (there is an option in the library to fixate this)
+  1. `pub(crate)` is not used 100% consistently (in some places I forgot to correct it)
+  2. Decimals are not handled consistently, sometimes 0 is 0 and sometimes it's 0.0, going to change this some other day (there is an option in the library to fixate this)
 
 ## git
 
