@@ -4,12 +4,12 @@ use rust_decimal::Decimal;
 
 use crate::objects::{
     accounts::Account,
-    transactions::{Metadata, Transaction},
+    transactions::{Metadata, Transaction, TransactionState},
 };
 
 pub(crate) struct Processor {
     account_store: HashMap<u16, Account>,
-    txn_cache: HashMap<u32, Decimal>,
+    txn_cache: HashMap<u32, (Decimal, TransactionState)>,
 }
 
 impl Processor {
@@ -37,38 +37,70 @@ impl Processor {
         match txn {
             Transaction::Deposit(Metadata { client: _, tx_id }, amount) => {
                 if let Some(acc) = self.account_store.get_mut(&acc_id) {
-                    acc.deposit(amount);
-                    self.txn_cache.entry(tx_id).or_insert(amount);
+                    match self.txn_cache.get(&tx_id) {
+                        None => {
+                            acc.deposit(amount);
+                            self.txn_cache
+                                .insert(tx_id, (amount, TransactionState::default()));
+                        }
+                        _ => {} // ignore double reporting of deposit
+                    };
                 }
             }
             Transaction::Withdrawal(Metadata { client: _, tx_id }, amount) => {
                 if let Some(acc) = self.account_store.get_mut(&acc_id) {
                     acc.withdraw(amount);
-                    self.txn_cache.entry(tx_id).or_insert(amount);
+                    self.txn_cache
+                        .entry(tx_id)
+                        .or_insert((amount, TransactionState::default()));
                 }
             }
             Transaction::Dispute(Metadata { client: _, tx_id }) => {
-                if let Some(amount) = self.txn_cache.get(&tx_id)
+                if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
-                    acc.dispute(*amount);
+                    match state {
+                        TransactionState::Initial => {
+                            acc.dispute(*amount);
+                            *state = TransactionState::Disputed;
+                        }
+                        _ => {} // Do nothing. There is not valid transition for this state and
+                                // operation type.
+                    }
                 };
             }
             Transaction::Resolve(Metadata { client: _, tx_id }) => {
-                if let Some(amount) = self.txn_cache.get(&tx_id)
+                if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
-                    // TODO(juf): Remove txn from cache.
-                    acc.resolve(*amount);
+                    // NOTE(juf): Once a transaction has been Resolved, we could think about
+                    // removing it from the cache, _but_ what if we receive the same transaction
+                    // again later? We would deposit the amount again.
+                    match state {
+                        TransactionState::Disputed => {
+                            acc.resolve(*amount);
+                            *state = TransactionState::Finalized;
+                        }
+                        _ => {} // Do nothing. There is not valid transition for this state and
+                                // operation type.
+                    }
                 };
             }
             Transaction::Chargeback(Metadata { client: _, tx_id }) => {
-                if let Some(amount) = self.txn_cache.get(&tx_id)
+                if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
-                    // TODO(juf): Remove txn from cache. (And potentially all owned by the user,
-                    // this would require an index for efficient lookup, potentially)
-                    acc.chargeback(*amount);
+                    // NOTE(juf): Once a transaction has been charged back, we could think about
+                    // removing it from the cache, _but_ what if we receive the same transaction
+                    // again later? We would deposit the amount again.
+                    match state {
+                        TransactionState::Disputed => {
+                            acc.chargeback(*amount);
+                            *state = TransactionState::Finalized;
+                        }
+                        _ => {} // Do nothing. There is not valid transition for this state and
+                                // operation type.
+                    }
                 };
             }
         };
@@ -106,12 +138,11 @@ mod tests {
             count += 1;
         }
         assert_eq!(
-            5, count,
+            11, count,
             "Did not receive the expected amount of transactions"
         );
         let out_dir = tempfile::tempdir().expect("Could not create tempdir");
         let out_path = out_dir.path().join("out.csv");
-        println!("out path: {:?}", out_path);
         let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
         let mut count = 0;
         let mut ordered_accounts: Vec<_> = p
@@ -167,7 +198,6 @@ mod tests {
         );
         let out_dir = tempfile::tempdir().expect("Could not create tempdir");
         let out_path = out_dir.path().join("out.csv");
-        println!("out path: {:?}", out_path);
         let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
         let mut count = 0;
         let mut ordered_accounts: Vec<_> = p
@@ -219,12 +249,11 @@ mod tests {
             count += 1;
         }
         assert_eq!(
-            20, count,
+            26, count,
             "Did not receive the expected amount of transactions"
         );
         let out_dir = tempfile::tempdir().expect("Could not create tempdir");
         let out_path = out_dir.path().join("out.csv");
-        println!("out path: {:?}", out_path);
         let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
         let mut count = 0;
         let mut ordered_accounts: Vec<_> = p
@@ -247,14 +276,32 @@ mod tests {
                 Account {
                     id: 1,
                     locked: false,
-                    available: dec!(1.0),
+                    available: dec!(13.3456),
                     held: dec!(2.0)
                 },
                 Account {
                     id: 2,
                     locked: false,
                     available: dec!(2.0),
+                    held: dec!(0.0)
+                },
+                Account {
+                    id: 3,
+                    locked: false,
+                    available: dec!(11.1001),
                     held: dec!(0)
+                },
+                Account {
+                    id: 4,
+                    locked: false,
+                    available: dec!(2.0),
+                    held: dec!(0)
+                },
+                Account {
+                    id: 10,
+                    locked: true,
+                    available: dec!(102.24),
+                    held: dec!(0.00)
                 }
             ],
             ordered_accounts

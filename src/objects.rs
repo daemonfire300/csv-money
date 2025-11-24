@@ -28,6 +28,22 @@ pub(crate) mod transactions {
         Chargeback(Metadata),
     }
 
+    /// TransactionState describes whether a Transaction
+    /// has been neither disputed/resolved/chargedback if it's `Initial`.
+    /// Been resolved or chargedback if it's `Finalized`.
+    /// Is under dispute `Disputed`.
+    pub enum TransactionState {
+        Initial,
+        Finalized,
+        Disputed,
+    }
+
+    impl Default for TransactionState {
+        fn default() -> Self {
+            TransactionState::Initial
+        }
+    }
+
     impl Transaction {
         pub(crate) fn get_metadata(&self) -> &Metadata {
             match self {
