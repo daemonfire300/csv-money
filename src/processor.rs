@@ -39,23 +39,22 @@ impl Processor {
         }
         match txn {
             Transaction::Deposit(Metadata { client: _, tx_id }, amount) => {
-                if let Some(acc) = self.account_store.get_mut(&acc_id)
-                    && self.txn_cache.get(&tx_id).is_none() {
+                if let Some(acc) = self.account_store.get_mut(&acc_id) {
+                    self.txn_cache.entry(tx_id).or_insert_with(|| {
                         acc.deposit(amount);
-                        self.txn_cache
-                            .insert(tx_id, (amount, TransactionState::default()));
-                    };
+                        (amount, TransactionState::default())
+                    });
                     // ELSE ignore double reporting of deposit
+                };
             }
             Transaction::Withdrawal(Metadata { client: _, tx_id }, amount) => {
-                if let Some(acc) = self.account_store.get_mut(&acc_id)
-                    && self.txn_cache.get(&tx_id).is_none() {
+                if let Some(acc) = self.account_store.get_mut(&acc_id) {
+                    self.txn_cache.entry(tx_id).or_insert_with(|| {
                         acc.withdraw(amount);
-                        self.txn_cache
-                            .entry(tx_id)
-                            .or_insert((amount, TransactionState::default()));
-                    }
+                        (amount, TransactionState::default())
+                    });
                     // ELSE ignore double reporting of withdraw
+                }
             }
             Transaction::Dispute(Metadata { client: _, tx_id }) => {
                 if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
