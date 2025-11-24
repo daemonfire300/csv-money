@@ -4,6 +4,8 @@ use std::{
     path::Path,
 };
 
+// used by test, we could move it there to avoid the linter error
+#[allow(dead_code)]
 pub(crate) fn default_csv_egress(path: &Path) -> std::io::Result<csv::Writer<BufWriter<File>>> {
     // NOTE(juf): The buffer size can/should be adjusted based on the use-case.
     // NOTE(juf): csv already comes with buffered writes. This is just an example how buffered
