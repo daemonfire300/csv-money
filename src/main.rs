@@ -1,7 +1,7 @@
 use std::{env::args, path::Path};
 
 use crate::{
-    ingest::{default_csv_ingest, ingest_from_stdin},
+    ingest::default_csv_ingest,
     objects::transactions::Transaction,
     processor::Processor,
 };

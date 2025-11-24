@@ -32,17 +32,15 @@ pub(crate) mod transactions {
     /// has been neither disputed/resolved/chargedback if it's `Initial`.
     /// Been resolved or chargedback if it's `Finalized`.
     /// Is under dispute `Disputed`.
+    #[derive(Default)]
     pub enum TransactionState {
+        #[default]
         Initial,
         Finalized,
         Disputed,
     }
 
-    impl Default for TransactionState {
-        fn default() -> Self {
-            TransactionState::Initial
-        }
-    }
+    
 
     impl Transaction {
         pub(crate) fn get_metadata(&self) -> &Metadata {
@@ -71,7 +69,7 @@ pub(crate) mod transactions {
 
 pub(crate) mod accounts {
     use rust_decimal::{Decimal, dec};
-    use serde::Serialize;
+    
 
     const ZERO: Decimal = dec!(0);
 
@@ -124,7 +122,7 @@ pub(crate) mod accounts {
 
         pub(crate) fn withdraw(&mut self, amount: Decimal) {
             if self.available >= amount {
-                self.available = self.available - amount
+                self.available -= amount
             }
         }
     }
