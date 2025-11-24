@@ -14,7 +14,7 @@ pub(crate) mod processor;
 pub(crate) mod serialize;
 
 fn main() -> Result<(), error::Error> {
-    let input_file_name = if let Some(name) = args().skip(1).next() {
+    let input_file_name = if let Some(name) = args().nth(1) {
         name
     } else {
         // TODO(juf): Add nicer error
