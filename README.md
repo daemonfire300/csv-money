@@ -33,6 +33,13 @@ I did not add security scanning yet, but I intend to in the future because [http
 
 ## Performance
 
+
+### HashMap(s) and buffers
+
+Based on the data ingest/egress one could apply heuristics like file-size before creating the `Processor` and pre-allocating a bigger `HashMap` to avoid too many re-allocations it due to growth.
+Similar for the buffer size, if reads/writes are costly or a bottleneck, a bigger buffer might be more advantages to avoid starving due to too many frequent syscalls.
+
+
 ### Decimal
 
 The decimal lib is a bit overkill for regular bookkeeping, there is "too much" precision and we could probably use less bytes, but it's convenient.

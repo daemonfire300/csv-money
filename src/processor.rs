@@ -138,7 +138,7 @@ impl Processor {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::{collections::HashMap, path::Path};
 
     use rust_decimal::dec;
 
