@@ -29,7 +29,7 @@ The decimal lib is a bit overkill for regular bookkeeping, there is "too much" p
 
 ### UTF-8 vs "raw"
 
-Assuming all statements are in ASCII we could maybe optimize the deserialization here, but that's just a hunch. I have not looked into this yet and it might very well end up not improving things depending on the volume of transactions.
+Assuming all statements are in ASCII we could maybe optimize the deserialization here, e.g., go over chunks of `&[u8]` instead of contructing strings, but that's just a hunch. I have not looked into this yet and it might very well end up not improving things depending on the volume of transactions.
 
 ### In General
 
