@@ -23,6 +23,8 @@ pub(crate) struct Processor {
     // in that tree, but that's maybe grasping, because I am not sure if this would actually
     // require less memory AND whether there are enough "collisions"/overlaps between observed
     // transaction amounts to allow for that.
+    // I guess it's reasonable to persist all or parts of the txn_cache to some external store, be
+    // it just the disk, or a KV/Relational Database and keep only "recent" entries in hot storage.
     txn_cache: HashMap<u32, (Decimal, TransactionState)>,
 }
 
