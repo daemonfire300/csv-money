@@ -42,6 +42,7 @@ I did not add security scanning yet, but I intend to in the future because [http
 ### Overall
 
 I did not come around to do any benchmarking yet, so I can only theoretically reason about bottlenecks. From my experience it's always better to do hands on experiments and get insights, because you always miss something and get suprised that "this" is slowing things down, e.g., in a very hot loop having 2 HashMap accesses (where only one is necessary) by accident or having 2 in the hot loop but split across two functions making it harder to spot.
+I found [https://github.com/wolfpld/tracy](https://github.com/wolfpld/tracy) to be useful for one of my multi-threaded projects.
 
 
 ### HashMap(s) and buffers
