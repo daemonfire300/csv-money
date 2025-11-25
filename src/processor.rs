@@ -45,7 +45,7 @@ impl Processor {
     // 2. Transaction IDs are globally unique, but we still assume by accident or malicious intent
     //    that a transaction, e.g., deposit can be submitted twice, therefore we try to guard
     //    against that.
-    // 3. Negative amounts are invalid and should be ignored
+    // 3. Negative amounts are invalid and should be ignored (this is missing tests)
     pub(crate) fn process_one(&mut self, txn: Transaction) {
         let metadata = txn.get_metadata();
         let acc_id = metadata.client;
