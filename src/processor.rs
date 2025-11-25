@@ -15,7 +15,14 @@ pub(crate) struct Processor {
     // Store transaction state to avoid incorrect "state" transitions, e.g., resolve to dispute.
     // CacheEntry Size with key included: 24, based on helper struct and using size_of::<CacheEntry>()
     // ~upwards of u32::MAX * 24 bytes + internal HashMap overhead of storage consumption
-    // unless I am wrong this is ~100 GB+ which does not fit into reasonable memory. RIP this program.
+    // unless I am wrong this is ~100 GB+ (and again HashMap internals overhead unaccounted) which does not fit into reasonable memory. RIP this program.
+    // I could write my "dumbed" down version of Decimal and use less bytes per Decimal and just
+    // implement Into<Decimal> for MyPackedDecimal, save a bit here.
+    // Then the next thing that comes to my mind is, maybe we can construct some sort of prefix
+    // tree based on parts of the Decimal and can save multiple txn (id+state) into leafs(buckets)
+    // in that tree, but that's maybe grasping, because I am not sure if this would actually
+    // require less memory AND whether there are enough "collisions"/overlaps between observed
+    // transaction amounts to allow for that.
     txn_cache: HashMap<u32, (Decimal, TransactionState)>,
 }
 
