@@ -15,6 +15,7 @@ pub(crate) struct Processor {
     // Store transaction state to avoid incorrect "state" transitions, e.g., resolve to dispute.
     // CacheEntry Size with key included: 24, based on helper struct and using size_of::<CacheEntry>()
     // ~upwards of u32::MAX * 24 bytes + internal HashMap overhead of storage consumption
+    // unless I am wrong this is ~100 GB+ which does not fit into reasonable memory. RIP this program.
     txn_cache: HashMap<u32, (Decimal, TransactionState)>,
 }
 
