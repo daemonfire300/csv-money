@@ -29,6 +29,9 @@ impl Processor {
 
     // Assumptions:
     // 1. Locked means no transactions associated with the account are being processed any more
+    // 2. Transaction IDs are globally unique, but we still assume by accident or malicious intent
+    //    that a transaction, e.g., deposit can be submitted twice, therefore we try to guard
+    //    against that.
     pub(crate) fn process_one(&mut self, txn: Transaction) {
         let metadata = txn.get_metadata();
         let acc_id = metadata.client;
@@ -84,6 +87,16 @@ impl Processor {
                     }
                 };
             }
+            // For both Resolve and Chargeback we could transfer the transaction to a less
+            // expensive "store", e.g., HashSet<u32>, which would "free up" (we remove it from the
+            // Main HashMap, less pressure to grow) at least 16+ bytes per
+            // "finalized" transaction (Decimal, plus state info). However, this is very much
+            // dependant on how often Resolve and Chargeback happen. Because if we want to guard
+            // against replay/double reports of a txn we now need to perform two lookups: 1st
+            // HashSet, 2nd HashMap, from my experience with another project reducing the amount of
+            // lookups you do is preferred. Technically we do not have to first look into the
+            // HashSet. If both stores are required we could order the lookup priority fixed or
+            // dynamically based on the statistical occurrence of Resolve/Chargebacks vs. Not.
             Transaction::Resolve(Metadata { client: _, tx_id }) => {
                 if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
@@ -91,6 +104,7 @@ impl Processor {
                     // NOTE(juf): Once a transaction has been Resolved, we could think about
                     // removing it from the cache, _but_ what if we receive the same transaction
                     // again later? We would deposit the amount again.
+                    // We could transfer it to a less expensive "store", e.g., HashSet<u32>
                     match state {
                         TransactionState::Disputed(InitialState::Deposit) => {
                             acc.resolve(*amount);
@@ -112,6 +126,7 @@ impl Processor {
                     // NOTE(juf): Once a transaction has been charged back, we could think about
                     // removing it from the cache, _but_ what if we receive the same transaction
                     // again later? We would deposit the amount again.
+                    // We could transfer it to a less expensive "store", e.g., HashSet<u32>
                     match state {
                         TransactionState::Disputed(InitialState::Deposit) => {
                             acc.chargeback(*amount);
