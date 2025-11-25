@@ -45,6 +45,7 @@ impl Processor {
     // 2. Transaction IDs are globally unique, but we still assume by accident or malicious intent
     //    that a transaction, e.g., deposit can be submitted twice, therefore we try to guard
     //    against that.
+    // 3. Negative amounts are invalid and should be ignored
     pub(crate) fn process_one(&mut self, txn: Transaction) {
         let metadata = txn.get_metadata();
         let acc_id = metadata.client;
@@ -55,6 +56,9 @@ impl Processor {
         }
         match txn {
             Transaction::Deposit(Metadata { client: _, tx_id }, amount) => {
+                if amount.is_sign_negative() {
+                    return;
+                }
                 if let Some(acc) = self.account_store.get_mut(&acc_id) {
                     self.txn_cache.entry(tx_id).or_insert_with(|| {
                         acc.deposit(amount);
@@ -69,6 +73,9 @@ impl Processor {
                 };
             }
             Transaction::Withdrawal(Metadata { client: _, tx_id }, amount) => {
+                if amount.is_sign_negative() {
+                    return;
+                }
                 if let Some(acc) = self.account_store.get_mut(&acc_id) {
                     self.txn_cache.entry(tx_id).or_insert_with(|| {
                         acc.withdraw(amount);
