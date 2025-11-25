@@ -166,9 +166,9 @@ impl Processor {
         };
     }
 
-    #[inline(always)]
+    #[inline]
     fn create_account_if_not_exists(&mut self, id: u16) -> &Account {
-        // debattable if necessary, therefore inline always
+        // debattable if necessary, therefore inline
         self.account_store.entry(id).or_insert(Account::new(id))
     }
 }
