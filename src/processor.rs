@@ -166,7 +166,9 @@ impl Processor {
         };
     }
 
+    #[inline(always)]
     fn create_account_if_not_exists(&mut self, id: u16) -> &Account {
+        // debattable
         self.account_store.entry(id).or_insert(Account::new(id))
     }
 }
