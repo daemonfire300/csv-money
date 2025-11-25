@@ -10,8 +10,11 @@ use crate::objects::{
 /// Processor is the core which get's feed individual transactions and manages the account and
 /// transaction (simplistic) "ledger".
 pub(crate) struct Processor {
+    // ~upwards of u16::MAX * 36 bytes + internal HashMap overhead of storage consumption
     account_store: HashMap<u16, Account>,
     // Store transaction state to avoid incorrect "state" transitions, e.g., resolve to dispute.
+    // CacheEntry Size with key included: 24, based on helper struct and using size_of::<CacheEntry>()
+    // ~upwards of u32::MAX * 24 bytes + internal HashMap overhead of storage consumption
     txn_cache: HashMap<u32, (Decimal, TransactionState)>,
 }
 
