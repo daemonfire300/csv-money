@@ -186,6 +186,9 @@ mod tests {
         processor::Processor,
     };
 
+    // TODO(juf): Add human readable comments to assert_XXX! where missing to have nicer test
+    // failures
+
     #[test]
     fn process_simple_file() {
         // TODO(juf): Create test file, maybe write generator function
