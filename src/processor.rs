@@ -25,7 +25,7 @@ pub(crate) struct Processor {
     // transaction amounts to allow for that.
     // I guess it's reasonable to persist all or parts of the txn_cache to some external store, be
     // it just the disk, or a KV/Relational Database and keep only "recent" entries in hot storage.
-    txn_cache: HashMap<u32, (Decimal, TransactionState)>,
+    txn_cache: HashMap<u32, (Metadata, Decimal, TransactionState)>,
 }
 
 impl Processor {
@@ -63,6 +63,7 @@ impl Processor {
                     self.txn_cache.entry(tx_id).or_insert_with(|| {
                         acc.deposit(amount);
                         (
+                            metadata.clone(),
                             amount,
                             TransactionState::Initial(
                                 crate::objects::transactions::InitialState::Deposit,
@@ -80,6 +81,7 @@ impl Processor {
                     self.txn_cache.entry(tx_id).or_insert_with(|| {
                         acc.withdraw(amount);
                         (
+                            metadata.clone(),
                             amount,
                             TransactionState::Initial(
                                 crate::objects::transactions::InitialState::Withdrawal,
@@ -90,10 +92,10 @@ impl Processor {
                 }
             }
             Transaction::Dispute(Metadata { client, tx_id }) => {
-                if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
+                if let Some((metadata, amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
-                    if acc.id != client {
+                    if metadata.client != client {
                         // foreign account / mismatch, disregard
                         return;
                     }
@@ -122,10 +124,10 @@ impl Processor {
             // HashSet. If both stores are required we could order the lookup priority fixed or
             // dynamically based on the statistical occurrence of Resolve/Chargebacks vs. Not.
             Transaction::Resolve(Metadata { client, tx_id }) => {
-                if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
+                if let Some((metadata, amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
-                    if acc.id != client {
+                    if metadata.client != client {
                         // foreign account / mismatch, disregard
                         return;
                     }
@@ -148,10 +150,10 @@ impl Processor {
                 };
             }
             Transaction::Chargeback(Metadata { client, tx_id }) => {
-                if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
+                if let Some((metadata, amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
-                    if acc.id != client {
+                    if metadata.client != client {
                         // foreign account / mismatch, disregard
                         return;
                     }
@@ -524,6 +526,58 @@ mod tests {
                 available: dec!(99.9999),
                 held: dec!(0.0)
             },],
+            ordered_accounts
+        )
+    }
+
+    #[test]
+    fn process_forbid_cross_account_dispute_resolution() {
+        // TODO(juf): Create test file, maybe write generator function
+        let mut ingest = default_csv_ingest(Path::new("tests/cross-account-dispute-1.csv"))
+            .expect("Can open file and create ingest");
+        let mut p = Processor::new();
+        let iter = ingest.deserialize();
+        for row in iter {
+            let row: Row = row.expect("Should be valid row");
+            let txn: Transaction = row.try_into().expect("Should be valid transaction");
+            p.process_one(txn);
+        }
+        let out_dir = tempfile::tempdir().expect("Could not create tempdir");
+        let out_path = out_dir.path().join("out.csv");
+        // NOTE(juf): Instead of asserting a vec we could also use snapshot testing and compare the
+        // test output csv with a snapshot csv
+        let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
+        let mut count = 0;
+        let mut ordered_accounts: Vec<_> = p
+            .get_account_store_ref()
+            .iter()
+            .map(|(_, v)| v)
+            .cloned()
+            .collect();
+        ordered_accounts.sort_by_key(|acc| acc.id);
+        for (_, account) in p.get_account_store_ref().iter() {
+            egress.serialize(account).expect("can write account row");
+            count += 1;
+        }
+        assert_eq!(
+            2, count,
+            "Did not receive the expected amount of account statements"
+        );
+        assert_eq!(
+            vec![
+                Account {
+                    id: 1,
+                    locked: false,
+                    available: dec!(100),
+                    held: dec!(0)
+                },
+                Account {
+                    id: 2,
+                    locked: false,
+                    available: dec!(0.0),
+                    held: dec!(0.0)
+                },
+            ],
             ordered_accounts
         )
     }

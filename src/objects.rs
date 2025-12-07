@@ -100,7 +100,7 @@ pub(crate) mod transactions {
         }
     }
 
-    #[derive(Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct Metadata {
         pub client: u16,
         pub tx_id: u32,
