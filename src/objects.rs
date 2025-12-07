@@ -2,19 +2,6 @@ pub(crate) mod transactions {
     use rust_decimal::Decimal;
     use serde::Deserialize;
 
-    // TOOD(juf): Safety improvement, write macro to turn VALID_VARIANTS into consts.
-    // This ties the strings to one source of truth. Currently you can still have a missing
-    // variant.
-    // This does not solve the exhaustiveness of the Deserialize type tag checking.
-    // Have to come up with an idea for that later (maybe).
-    pub(crate) const DEPOSIT: &str = "deposit";
-    pub(crate) const WITHDRAWAL: &str = "withdrawal";
-    pub(crate) const DISPUTE: &str = "dispute";
-    pub(crate) const RESOLVE: &str = "resolve";
-    pub(crate) const CHARGEBACK: &str = "chargeback";
-    pub(crate) const VALID_VARIANTS: [&str; 5] =
-        [DEPOSIT, WITHDRAWAL, DISPUTE, RESOLVE, CHARGEBACK];
-
     #[derive(Debug, Deserialize, PartialEq, Eq)]
     #[serde(rename_all = "lowercase")]
     pub(crate) enum TxType {
