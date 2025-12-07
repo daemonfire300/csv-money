@@ -89,10 +89,14 @@ impl Processor {
                     // ELSE ignore double reporting of withdraw
                 }
             }
-            Transaction::Dispute(Metadata { client: _, tx_id }) => {
+            Transaction::Dispute(Metadata { client, tx_id }) => {
                 if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
+                    if acc.id != client {
+                        // foreign account / mismatch, disregard
+                        return;
+                    }
                     match state {
                         TransactionState::Initial(InitialState::Deposit) => {
                             acc.dispute(*amount);
@@ -117,10 +121,14 @@ impl Processor {
             // lookups you do is preferred. Technically we do not have to first look into the
             // HashSet. If both stores are required we could order the lookup priority fixed or
             // dynamically based on the statistical occurrence of Resolve/Chargebacks vs. Not.
-            Transaction::Resolve(Metadata { client: _, tx_id }) => {
+            Transaction::Resolve(Metadata { client, tx_id }) => {
                 if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
+                    if acc.id != client {
+                        // foreign account / mismatch, disregard
+                        return;
+                    }
                     // NOTE(juf): Once a transaction has been Resolved, we could think about
                     // removing it from the cache, _but_ what if we receive the same transaction
                     // again later? We would deposit the amount again.
@@ -139,10 +147,14 @@ impl Processor {
                     }
                 };
             }
-            Transaction::Chargeback(Metadata { client: _, tx_id }) => {
+            Transaction::Chargeback(Metadata { client, tx_id }) => {
                 if let Some((amount, state)) = self.txn_cache.get_mut(&tx_id)
                     && let Some(acc) = self.account_store.get_mut(&acc_id)
                 {
+                    if acc.id != client {
+                        // foreign account / mismatch, disregard
+                        return;
+                    }
                     // NOTE(juf): Once a transaction has been charged back, we could think about
                     // removing it from the cache, _but_ what if we receive the same transaction
                     // again later? We would deposit the amount again.
