@@ -1,5 +1,6 @@
 pub(crate) mod transactions {
     use rust_decimal::Decimal;
+    use serde::Deserialize;
 
     // TOOD(juf): Safety improvement, write macro to turn VALID_VARIANTS into consts.
     // This ties the strings to one source of truth. Currently you can still have a missing
@@ -13,6 +14,88 @@ pub(crate) mod transactions {
     pub(crate) const CHARGEBACK: &str = "chargeback";
     pub(crate) const VALID_VARIANTS: [&str; 5] =
         [DEPOSIT, WITHDRAWAL, DISPUTE, RESOLVE, CHARGEBACK];
+
+    #[derive(Debug, Deserialize, PartialEq, Eq)]
+    #[serde(rename_all = "lowercase")]
+    pub(crate) enum TxType {
+        Deposit,
+        Withdrawal,
+        Dispute,
+        Resolve,
+        Chargeback,
+    }
+
+    #[derive(Debug, Deserialize, PartialEq, Eq)]
+    pub(crate) struct Row {
+        pub r#type: TxType,
+        pub client: u16,
+        pub tx: u32,
+        pub amount: Option<Decimal>,
+    }
+
+    impl From<Row> for Metadata {
+        fn from(value: Row) -> Self {
+            Metadata {
+                client: value.client,
+                tx_id: value.tx,
+            }
+        }
+    }
+
+    impl TryFrom<Row> for Transaction {
+        type Error = crate::error::Error;
+
+        fn try_from(value: Row) -> Result<Self, Self::Error> {
+            match value {
+                Row {
+                    r#type: TxType::Deposit,
+                    client,
+                    tx,
+                    amount,
+                } => {
+                    if let Some(amount) = amount {
+                        Ok(Transaction::Deposit(value.into(), amount))
+                    } else {
+                        Err(crate::error::Error::InvalidRow(
+                            "deposits require an amount".into(),
+                        ))
+                    }
+                }
+                Row {
+                    r#type: TxType::Withdrawal,
+                    client,
+                    tx,
+                    amount,
+                } => {
+                    if let Some(amount) = amount {
+                        Ok(Transaction::Withdrawal(value.into(), amount))
+                    } else {
+                        Err(crate::error::Error::InvalidRow(
+                            "withdrawals require an amount".into(),
+                        ))
+                    }
+                }
+                Row {
+                    r#type: TxType::Dispute,
+                    client,
+                    tx,
+                    amount,
+                } => Ok(Transaction::Dispute(value.into())),
+                Row {
+                    r#type: TxType::Chargeback,
+                    client,
+                    tx,
+                    amount,
+                } => Ok(Transaction::Chargeback(value.into())),
+                Row {
+                    r#type: TxType::Resolve,
+                    client,
+                    tx,
+                    amount,
+                } => Ok(Transaction::Resolve(value.into())),
+            }
+        }
+    }
 
     // TODO(juf): Think about making this more "safe" using the type-system.
     // Currently this allows representing invalid domain entities, e.g.,
