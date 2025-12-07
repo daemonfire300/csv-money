@@ -191,6 +191,48 @@ mod tests {
 
     // TODO(juf): Add human readable comments to assert_XXX! where missing to have nicer test
     // failures
+    //
+    #[test]
+    fn process_should_not_allow_overspending() {
+        // TODO(juf): Create test file, maybe write generator function
+        let mut ingest = default_csv_ingest(Path::new("tests/sample-overspend.csv"))
+            .expect("Can open file and create ingest");
+        let mut p = Processor::new();
+        let iter = ingest.deserialize();
+        for row in iter {
+            let row: Row = row.expect("Should be valid row");
+            let txn: Transaction = row.try_into().expect("Should be valid transaction");
+            p.process_one(txn);
+        }
+        let out_dir = tempfile::tempdir().expect("Could not create tempdir");
+        let out_path = out_dir.path().join("out.csv");
+        let mut egress = default_csv_egress(&out_path).expect("should get default egress writer");
+        let mut count = 0;
+        let mut ordered_accounts: Vec<_> = p
+            .get_account_store_ref()
+            .iter()
+            .map(|(_, v)| v)
+            .cloned()
+            .collect();
+        ordered_accounts.sort_by_key(|acc| acc.id);
+        for (_, account) in p.get_account_store_ref().iter() {
+            egress.serialize(account).expect("can write account row");
+            count += 1;
+        }
+        assert_eq!(
+            1, count,
+            "Did not receive the expected amount of account statements"
+        );
+        assert_eq!(
+            vec![Account {
+                id: 1,
+                locked: false,
+                available: dec!(1.7),
+                held: dec!(0)
+            },],
+            ordered_accounts
+        )
+    }
 
     #[test]
     fn process_simple_file() {
