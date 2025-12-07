@@ -182,7 +182,10 @@ mod tests {
     use crate::{
         egress::default_csv_egress,
         ingest::default_csv_ingest,
-        objects::{accounts::Account, transactions::Transaction},
+        objects::{
+            accounts::Account,
+            transactions::{Row, Transaction},
+        },
         processor::Processor,
     };
 
@@ -198,7 +201,8 @@ mod tests {
         let iter = ingest.deserialize();
         let mut count = 0;
         for row in iter {
-            let txn: Transaction = row.expect("Should be valid transaction");
+            let row: Row = row.expect("Should be valid row");
+            let txn: Transaction = row.try_into().expect("Should be valid transaction");
             p.process_one(txn);
             count += 1;
         }
@@ -253,7 +257,8 @@ mod tests {
         let iter = ingest.deserialize();
         let mut count = 0;
         for row in iter {
-            let txn: Transaction = row.expect("Should be valid transaction");
+            let row: Row = row.expect("Should be valid row");
+            let txn: Transaction = row.try_into().expect("Should be valid transaction");
             p.process_one(txn);
             count += 1;
         }
@@ -309,7 +314,8 @@ mod tests {
         let iter = ingest.deserialize();
         let mut count = 0;
         for row in iter {
-            let txn: Transaction = row.expect("Should be valid transaction");
+            let row: Row = row.expect("Should be valid row");
+            let txn: Transaction = row.try_into().expect("Should be valid transaction");
             p.process_one(txn);
             count += 1;
         }
@@ -388,7 +394,8 @@ mod tests {
         let mut p = Processor::new();
         let iter = ingest.deserialize();
         for row in iter {
-            let txn: Transaction = row.expect("Should be valid transaction");
+            let row: Row = row.expect("Should be valid row");
+            let txn: Transaction = row.try_into().expect("Should be valid transaction");
             p.process_one(txn);
         }
         let out_dir = tempfile::tempdir().expect("Could not create tempdir");
@@ -431,7 +438,8 @@ mod tests {
         let mut p = Processor::new();
         let iter = ingest.deserialize();
         for row in iter {
-            let txn: Transaction = row.expect("Should be valid transaction");
+            let row: Row = row.expect("Should be valid row");
+            let txn: Transaction = row.try_into().expect("Should be valid transaction");
             p.process_one(txn);
         }
         let out_dir = tempfile::tempdir().expect("Could not create tempdir");
@@ -475,7 +483,8 @@ mod tests {
         let mut p = Processor::new();
         let iter = ingest.deserialize();
         for row in iter {
-            let txn: Transaction = row.expect("Should be valid transaction");
+            let row: Row = row.expect("Should be valid row");
+            let txn: Transaction = row.try_into().expect("Should be valid transaction");
             p.process_one(txn);
         }
         let out_dir = tempfile::tempdir().expect("Could not create tempdir");
@@ -520,7 +529,8 @@ mod tests {
         let mut p = Processor::new();
         let iter = ingest.deserialize();
         for row in iter {
-            let txn: Transaction = row.expect("Should be valid transaction");
+            let row: Row = row.expect("Should be valid row");
+            let txn: Transaction = row.try_into().expect("Should be valid transaction");
             p.process_one(txn);
         }
         let out_dir = tempfile::tempdir().expect("Could not create tempdir");
@@ -565,7 +575,8 @@ mod tests {
         let mut p = Processor::new();
         let iter = ingest.deserialize();
         for row in iter {
-            let txn: Transaction = row.expect("Should be valid transaction");
+            let row: Row = row.expect("Should be valid row");
+            let txn: Transaction = row.try_into().expect("Should be valid transaction");
             p.process_one(txn);
         }
         let out_dir = tempfile::tempdir().expect("Could not create tempdir");

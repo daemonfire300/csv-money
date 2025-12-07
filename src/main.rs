@@ -1,7 +1,9 @@
 use std::{env::args, path::Path};
 
 use crate::{
-    egress::stdout_csv_egress, ingest::default_csv_ingest, objects::transactions::Transaction,
+    egress::stdout_csv_egress,
+    ingest::default_csv_ingest,
+    objects::transactions::{Row, Transaction},
     processor::Processor,
 };
 
@@ -24,7 +26,8 @@ fn main() -> Result<(), error::Error> {
     let mut p = Processor::new();
     let iter = ingest.deserialize();
     for row in iter {
-        let txn: Transaction = row?;
+        let row: Row = row?;
+        let txn: Transaction = row.try_into()?;
         p.process_one(txn);
     }
     let mut egress = stdout_csv_egress()?;
