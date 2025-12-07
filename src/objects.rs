@@ -46,14 +46,9 @@ pub(crate) mod transactions {
         type Error = crate::error::Error;
 
         fn try_from(value: Row) -> Result<Self, Self::Error> {
-            match value {
-                Row {
-                    r#type: TxType::Deposit,
-                    client,
-                    tx,
-                    amount,
-                } => {
-                    if let Some(amount) = amount {
+            match value.r#type {
+                TxType::Deposit => {
+                    if let Some(amount) = value.amount {
                         Ok(Transaction::Deposit(value.into(), amount))
                     } else {
                         Err(crate::error::Error::InvalidRow(
@@ -61,13 +56,8 @@ pub(crate) mod transactions {
                         ))
                     }
                 }
-                Row {
-                    r#type: TxType::Withdrawal,
-                    client,
-                    tx,
-                    amount,
-                } => {
-                    if let Some(amount) = amount {
+                TxType::Withdrawal => {
+                    if let Some(amount) = value.amount {
                         Ok(Transaction::Withdrawal(value.into(), amount))
                     } else {
                         Err(crate::error::Error::InvalidRow(
@@ -75,24 +65,9 @@ pub(crate) mod transactions {
                         ))
                     }
                 }
-                Row {
-                    r#type: TxType::Dispute,
-                    client,
-                    tx,
-                    amount,
-                } => Ok(Transaction::Dispute(value.into())),
-                Row {
-                    r#type: TxType::Chargeback,
-                    client,
-                    tx,
-                    amount,
-                } => Ok(Transaction::Chargeback(value.into())),
-                Row {
-                    r#type: TxType::Resolve,
-                    client,
-                    tx,
-                    amount,
-                } => Ok(Transaction::Resolve(value.into())),
+                TxType::Dispute => Ok(Transaction::Dispute(value.into())),
+                TxType::Chargeback => Ok(Transaction::Chargeback(value.into())),
+                TxType::Resolve => Ok(Transaction::Resolve(value.into())),
             }
         }
     }
